@@ -48,4 +48,8 @@ import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
     TYPEALIAS,
     FILE,
 )
-annotation class ExportAsHtml(val theme: Boolean = true, val stripReferences: Boolean = true, val includeResizeScript: Boolean = true)
+annotation class ExportAsHtml(
+    val theme: Boolean = true,
+    val stripReferences: Boolean = true,
+    val includeResizeScript: Boolean = true,
+)
