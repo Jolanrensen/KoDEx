@@ -330,9 +330,18 @@ abstract class RunKodexAction {
                 ?.second as? Boolean?
                 ?: true
 
+            val includeResizeScript = exportHtmlAnnotation.arguments
+                .firstOrNull { (it, _) -> it == ExportAsHtml::includeResizeScript.name }
+                ?.second as? Boolean?
+                ?: true
+
             val html = doc
                 .getDocContentForHtmlRange()
-                .renderToHtml(theme = addTheme, stripReferences = stripReferences)
+                .renderToHtml(
+                    theme = addTheme,
+                    stripReferences = stripReferences,
+                    includeResizeScript = includeResizeScript,
+                )
             val targetFile = File(htmlDir, doc.fullyQualifiedPath + ".html")
             try {
                 targetFile.apply {

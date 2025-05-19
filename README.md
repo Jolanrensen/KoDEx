@@ -105,7 +105,7 @@ to provide documentation for other elements.
 To export a KDoc comment as HTML, you can use the `@ExportAsHtml` annotation.
 Create an annotation class named exactly "`ExportAsHtml`" and add the arguments `theme: Boolean` and 
 `stripReferences: Boolean` (default both to `true`)
-(you can copy the code from [here](./kodex-common/src/main/kotlin/nl/jolanrensen/kodex/ExportAsHtml.kt)).
+(you can copy the code from [here](./kodex-common/src/main/kotlin/nl/jolanrensen/kodex/annotations/ExportAsHtml.kt)).
 Then, add the annotation to the element you want to export as HTML.
 
 Inside the KDoc comment, you can mark a range of text to be exported as HTML by using the optional `@exportAsHtmlStart` 

@@ -16,7 +16,7 @@ import org.intellij.markdown.html.entities.EntityConverter
 import org.intellij.markdown.parser.LinkMap
 import org.intellij.markdown.parser.MarkdownParser
 
-fun DocContent.renderToHtml(theme: Boolean, stripReferences: Boolean): String {
+fun DocContent.renderToHtml(theme: Boolean, stripReferences: Boolean, includeResizeScript: Boolean): String {
     // TODO https://github.com/JetBrains/markdown
     val flavour = GFMFlavourDescriptor(
         useSafeLinks = false,
@@ -103,6 +103,54 @@ fun DocContent.renderToHtml(theme: Boolean, stripReferences: Boolean): String {
                 """.trimIndent(),
             )
             appendLine("</style>")
+            if (includeResizeScript) {
+                @Language("html")
+                val b = appendLine(
+                    """
+                        <script>
+                            function sendHeight() {
+                                const body = document.body;
+                                const html = document.documentElement;
+
+                                const height = Math.max(
+                                    body.scrollHeight,
+                                    body.offsetHeight,
+                                    html.clientHeight,
+                                    html.scrollHeight,
+                                    html.offsetHeight
+                                );
+
+                                parent.postMessage({ type: 'iframeHeight', height }, '*');
+                            }
+
+
+                            function repeatHeightCalculation(maxRetries = 10, interval = 100) {
+                                let retries = 0;
+                                const intervalId = setInterval(() => {
+                                    sendHeight();
+                                    retries++;
+                                    if (retries >= maxRetries) clearInterval(intervalId);
+                                }, interval);
+                            }
+
+                            window.addEventListener('load', () => {
+                                repeatHeightCalculation();
+                            });
+
+
+                            const observer = new MutationObserver(() => repeatHeightCalculation(5, 50));
+                            observer.observe(document.body, {
+                                childList: true,
+                                subtree: true,
+                                characterData: true,
+                                attributes: true
+                            });
+
+                            window.addEventListener('resize', sendHeight);
+                        </script>
+                    """.trimIndent()
+                )
+            }
             appendLine("</head>")
         }
         appendLine(body)
