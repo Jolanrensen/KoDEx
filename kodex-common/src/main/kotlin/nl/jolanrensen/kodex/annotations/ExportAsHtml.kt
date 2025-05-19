@@ -30,6 +30,8 @@ import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
  * @param stripReferences Whether to strip `[references]` from the HTML file. Default is `true`.
  *  This is useful when you want to include the HTML file in a website, where the references are not
  *  needed or would break.
+ * @param includeResizeScript Whether to include a script that helps height recalculation inside iFrames.
+ *  This is useful inside WriterSide. Default is `true`.
  */
 @Target(
     CLASS,
@@ -46,4 +48,4 @@ import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
     TYPEALIAS,
     FILE,
 )
-annotation class ExportAsHtml(val theme: Boolean = true, val stripReferences: Boolean = true)
+annotation class ExportAsHtml(val theme: Boolean = true, val stripReferences: Boolean = true, val includeResizeScript: Boolean = true)

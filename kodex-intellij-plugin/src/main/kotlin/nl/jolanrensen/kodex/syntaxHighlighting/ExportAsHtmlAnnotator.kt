@@ -128,7 +128,7 @@ private fun exportToHtmlFile(annotationArguments: List<ValueArgument>, doc: Docu
 
     val html = doc
         .getDocContentForHtmlRange()
-        .renderToHtml(theme = theme, stripReferences = stripReferences)
+        .renderToHtml(theme = theme, stripReferences = stripReferences, includeResizeScript = false)
     val file = File.createTempFile(doc.fullyQualifiedPath, ".html")
     file.writeText(html)
 
