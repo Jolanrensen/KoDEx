@@ -544,7 +544,7 @@ documentation directly in the IDE.
 
 It now also helps with writing the documentation by providing completion, highlighting, and descriptions for the tags.
 
-Now on the [Marketplace](https://plugins.jetbrains.com/plugin/26250)!
+Now on the [Marketplace](https://plugins.jetbrains.com/plugin/27473)!
 
 You can also try building the plugin yourself from sources and installing it in IntelliJ.
 The plugin in its current state is unconfigurable and just uses the default processors as shown in the sample above.
