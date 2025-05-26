@@ -1,5 +1,6 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.models.ProductRelease
 import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -7,7 +8,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     id("java")
     kotlin("jvm")
-    id("org.jetbrains.intellij.platform") version "2.2.1"
+    id("org.jetbrains.intellij.platform") version "2.6.0"
     id("org.jlleitschuh.gradle.ktlint")
 }
 
@@ -17,6 +18,7 @@ version = "0.4.4-SNAPSHOT"
 repositories {
     mavenCentral()
     intellijPlatform {
+        releases()
         defaultRepositories()
     }
     mavenLocal()
@@ -34,16 +36,16 @@ intellijPlatform {
     pluginConfiguration {
         name = "/** KoDEx */: Kotlin Documentation Extensions"
         ideaVersion {
-            sinceBuild = "242"
-            untilBuild = "243.*"
+            sinceBuild = "243"
+            untilBuild = "252.*"
         }
     }
     pluginVerification {
         cliPath.set(file("verifier-all.jar"))
 
         ides {
-            ide(IntelliJPlatformType.IntellijIdeaCommunity, "2024.3")
-            ide(IntelliJPlatformType.IntellijIdeaUltimate, "2024.3")
+            ide(IntelliJPlatformType.IntellijIdeaCommunity, "2025.1")
+            ide(IntelliJPlatformType.IntellijIdeaUltimate, "2025.1")
             recommended()
         }
     }
@@ -57,7 +59,7 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-core:5.5.5")
 
     intellijPlatform {
-        intellijIdeaCommunity("2024.3.1.1")
+        intellijIdeaCommunity("252.16512.17")
         bundledPlugins(
             "org.jetbrains.kotlin",
             "com.intellij.java",
@@ -65,6 +67,18 @@ dependencies {
         )
         zipSigner()
         testFramework(TestFrameworkType.Platform)
+    }
+}
+
+tasks {
+    printProductsReleases {
+        channels = listOf(ProductRelease.Channel.EAP)
+        types = listOf(IntelliJPlatformType.IntellijIdeaCommunity)
+        untilBuild = provider { null }
+
+        doLast {
+            val latestEap = productsReleases.get().max()
+        }
     }
 }
 
