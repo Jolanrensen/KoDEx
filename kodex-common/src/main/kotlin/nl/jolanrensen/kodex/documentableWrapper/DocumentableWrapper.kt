@@ -1,8 +1,8 @@
 package nl.jolanrensen.kodex.documentableWrapper
 
 import nl.jolanrensen.kodex.docContent.DocContent
+import nl.jolanrensen.kodex.docContent.KDocTag
 import nl.jolanrensen.kodex.docContent.asDocContent
-import nl.jolanrensen.kodex.docContent.findTagNames
 import nl.jolanrensen.kodex.documentableWrapper.DocumentableWrapper.Companion
 import nl.jolanrensen.kodex.query.DocumentablesByPath
 import nl.jolanrensen.kodex.query.withoutFilters
@@ -42,9 +42,9 @@ import java.util.UUID
  * @property [fileTextRange] The range in the file this documentable is defined in.
  *
  * @property [docContent] Just the contents of the comment, without the `*`-stuff. Can be modified with [copy] or via
- *   [toMutable].
- * @property [tags] List of tag names present in this documentable. Can be modified with [copy] or via
- *   [toMutable]. Must be updated manually if [docContent] is modified.
+ *   [toMutable]. This also updates the [tags] property.
+ * @property [tags] List of [KDocTag]s present in this documentable's [docContent]. Can be modified with [copy] or via
+ *   [toMutable]. Is automatically updated when [docContent] is modified.
  * @property [isModified] Whether the [docContent] was modified. Can be modified with [copy] or via
  *   [toMutable]. Must be updated manually if [docContent] is modified.
  *
@@ -78,7 +78,7 @@ open class DocumentableWrapper(
     ),
     val origin: Any,
     open val docContent: DocContent,
-    open val tags: Set<String>,
+    open val tags: List<KDocTag>,
     open val isModified: Boolean,
     open val htmlRangeStart: Int?,
     open val htmlRangeEnd: Int?,
@@ -140,7 +140,7 @@ open class DocumentableWrapper(
         docIndent = docIndent,
         docContent = docContent,
         annotations = annotations,
-        tags = docContent.findTagNames().toSet(),
+        tags = docContent.structuredTags,
         isModified = false,
         htmlRangeStart = htmlRangeStart,
         htmlRangeEnd = htmlRangeEnd,
@@ -175,7 +175,6 @@ open class DocumentableWrapper(
     /** Returns a copy of this [DocumentableWrapper] with the given parameters. */
     open fun copy(
         docContent: DocContent = this.docContent,
-        tags: Set<String> = this.tags,
         isModified: Boolean = this.isModified,
     ): DocumentableWrapper =
         DocumentableWrapper(
@@ -190,7 +189,7 @@ open class DocumentableWrapper(
             docFileTextRange = docFileTextRange,
             docIndent = docIndent,
             docContent = docContent,
-            tags = tags,
+            tags = docContent.structuredTags,
             isModified = isModified,
             annotations = annotations,
             identifier = identifier,
