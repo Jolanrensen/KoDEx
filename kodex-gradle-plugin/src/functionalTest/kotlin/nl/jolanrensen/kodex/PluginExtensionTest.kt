@@ -27,7 +27,7 @@ class PluginExtensionTest : DocProcessorFunctionalTest("extension") {
     @Language("kts")
     private val buildFile: String = """
         plugins {  
-            kotlin("jvm") version "2.1.0"
+            kotlin("jvm") version "2.2.10"
             id("com.vanniktech.maven.publish") version "0.22.0"
         }
 

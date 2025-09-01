@@ -36,11 +36,11 @@ dependencies {
     // Gradle plugin dependencies
     shadow(gradleApi())
     shadow(gradleKotlinDsl())
-    compileOnly("org.jetbrains.kotlin.jvm:org.jetbrains.kotlin.jvm.gradle.plugin:2.0.20")
-    compileOnly("org.jetbrains.kotlin.multiplatform:org.jetbrains.kotlin.multiplatform.gradle.plugin:2.0.20")
+    compileOnly("org.jetbrains.kotlin.jvm:org.jetbrains.kotlin.jvm.gradle.plugin:2.2.10")
+    compileOnly("org.jetbrains.kotlin.multiplatform:org.jetbrains.kotlin.multiplatform.gradle.plugin:2.2.10")
 
     // Dokka dependencies
-    val dokkaVersion = "2.0.0"
+    val dokkaVersion = "2.1.0-Beta"
     shadow("org.jetbrains.dokka:analysis-kotlin-symbols:$dokkaVersion")
     shadow("org.jetbrains.dokka:dokka-base:$dokkaVersion")
     shadow("org.jetbrains.dokka:dokka-core:$dokkaVersion")

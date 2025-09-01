@@ -2,7 +2,7 @@ import nl.jolanrensen.kodex.defaultProcessors.ARG_DOC_PROCESSOR_LOG_NOT_FOUND
 import nl.jolanrensen.kodex.gradle.creatingRunKodexTask
 
 plugins {
-    kotlin("jvm") version "2.1.21"
+    kotlin("jvm") version "2.2.10"
 
     // adding the Gradle plugin
     id("nl.jolanrensen.kodex") version "0.4.1-SNAPSHOT"

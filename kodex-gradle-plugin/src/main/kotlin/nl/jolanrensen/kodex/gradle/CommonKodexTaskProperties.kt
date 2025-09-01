@@ -250,7 +250,7 @@ fun CommonKodexTaskProperties.applyConventions(project: Project, factory: Object
 internal fun Project.maybeCreateRuntimeConfiguration(): Configuration =
     project.configurations.maybeCreate("kotlinKdocIncludePluginRuntime") {
         isCanBeConsumed = true
-        val dokkaVersion = "2.0.0"
+        val dokkaVersion = "2.1.0-Beta"
 
         dependencies.add(project.dependencies.create("org.jetbrains.dokka:analysis-kotlin-api:$dokkaVersion"))
         dependencies.add(
