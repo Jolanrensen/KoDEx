@@ -249,15 +249,20 @@ fun CommonKodexTaskProperties.applyConventions(project: Project, factory: Object
 
 internal fun Project.maybeCreateRuntimeConfiguration(): Configuration =
     project.configurations.maybeCreate("kotlinKdocIncludePluginRuntime") {
-        isCanBeConsumed = true
-        val dokkaVersion = "2.1.0-Beta"
+        isCanBeConsumed = false
+        isCanBeResolved = true
 
-        dependencies.add(project.dependencies.create("org.jetbrains.dokka:analysis-kotlin-api:$dokkaVersion"))
-        dependencies.add(
-            project.dependencies.create("org.jetbrains.dokka:analysis-kotlin-symbols:$dokkaVersion"),
-        )
-        dependencies.add(project.dependencies.create("org.jetbrains.dokka:dokka-base:$dokkaVersion"))
-        dependencies.add(project.dependencies.create("org.jetbrains.dokka:dokka-core:$dokkaVersion"))
+//        val dokkaVersion = "2.1.0-Beta"
+        val dokkaVersion = "2.0.0"
+
+        listOf(
+            "org.jetbrains.dokka:analysis-kotlin-api:$dokkaVersion",
+            "org.jetbrains.dokka:analysis-kotlin-symbols:$dokkaVersion",
+            "org.jetbrains.dokka:dokka-base:$dokkaVersion",
+            "org.jetbrains.dokka:dokka-core:$dokkaVersion",
+            "org.jetbrains.dokka:dokka-base-test-utils:$dokkaVersion",
+            "org.jetbrains.dokka:dokka-gradle-plugin:$dokkaVersion",
+        ).forEach { dependencies += project.dependencies.create(it) }
     }
 
 internal fun <T : Any> NamedDomainObjectContainer<T>.maybeCreate(name: String, configuration: T.() -> Unit): T =

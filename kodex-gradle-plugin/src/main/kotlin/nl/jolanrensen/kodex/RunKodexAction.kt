@@ -25,12 +25,15 @@ import org.jetbrains.dokka.CoreExtensions
 import org.jetbrains.dokka.DokkaBootstrapImpl
 import org.jetbrains.dokka.DokkaConfigurationImpl
 import org.jetbrains.dokka.DokkaGenerator
+import org.jetbrains.dokka.DokkaSourceSetID
 import org.jetbrains.dokka.DokkaSourceSetImpl
+import org.jetbrains.dokka.Platform
 import org.jetbrains.dokka.base.DokkaBase
 import org.jetbrains.dokka.model.WithSources
 import org.jetbrains.dokka.model.withDescendants
 import java.io.File
 import java.io.IOException
+import java.io.Serializable
 import kotlin.time.DurationUnit
 import kotlin.time.measureTimedValue
 
@@ -51,9 +54,18 @@ private val log = KotlinLogging.logger {}
  */
 abstract class RunKodexAction {
 
+    // Neutral DTO: no Dokka references here
+    data class SourceSetSpec(
+        val name: String,
+        val sourceRoots: List<File>,
+        val apiVersion: String,
+        // Optional: if you want to control module name (defaults to "module")
+        val moduleName: String = "module",
+    ) : Serializable
+
     interface Parameters {
         val baseDir: File
-        val sources: DokkaSourceSetImpl
+        val sources: SourceSetSpec
         val sourceRoots: List<File>
         val target: File?
         val exportAsHtmlDir: File?
@@ -65,6 +77,39 @@ abstract class RunKodexAction {
     }
 
     abstract val parameters: Parameters
+
+    val sources by lazy {
+        parameters.sources.let {
+            buildDokkaSourceSet(
+                name = it.name,
+                moduleName = it.moduleName,
+                apiVersion = it.apiVersion,
+                roots = it.sourceRoots,
+            )
+        }
+    }
+
+    // Runs inside the isolated worker classloader; Dokka classes are available here.
+    private fun buildDokkaSourceSet(
+        name: String,
+        moduleName: String,
+        apiVersion: String,
+        roots: List<File>,
+    ): DokkaSourceSetImpl {
+        val id = DokkaSourceSetID(moduleName, name)
+
+        // Construct a minimal, valid DokkaSourceSetImpl for JVM analysis.
+        // Dokka 2.1.0-Beta provides defaults for most parameters, so we only set the essentials.
+        return DokkaSourceSetImpl(
+            sourceSetID = id,
+            displayName = name,
+            sourceRoots = roots.toSet(),
+            // Optional but recommended: make sure platform/api/lang are set
+            analysisPlatform = Platform.jvm,
+            apiVersion = apiVersion,
+            languageVersion = apiVersion,
+        )
+    }
 
     protected suspend fun process() {
         // analyse the sources with dokka to get the documentables
@@ -118,7 +163,7 @@ abstract class RunKodexAction {
     private fun analyseSourcesWithDokka(): (List<DocProcessor>) -> DocumentablesByPath {
         // initialize dokka with the sources
         val configuration = DokkaConfigurationImpl(
-            sourceSets = listOf(parameters.sources),
+            sourceSets = listOf(sources),
         )
         val logger = DokkaBootstrapImpl.DokkaProxyLogger { level, message ->
             with(log) {
@@ -145,7 +190,7 @@ abstract class RunKodexAction {
         // execute the translators on the sources to gather the modules
         val modules = translators.map {
             it.invoke(
-                sourceSet = parameters.sources,
+                sourceSet = sources,
                 context = context,
             )
         }
@@ -162,7 +207,7 @@ abstract class RunKodexAction {
             pathsWithoutSources += withoutSources.mapNotNull { it.dri.fullyQualifiedExtensionPath }
 
             documentables += withSources.mapNotNull {
-                val source = (it as WithSources).sources[parameters.sources]
+                val source = (it as WithSources).sources[sources]
                     ?: return@mapNotNull null
 
                 DocumentableWrapper.createFromDokkaOrNull(

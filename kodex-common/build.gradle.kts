@@ -4,17 +4,30 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     java
     kotlin("jvm")
-    id("com.vanniktech.maven.publish") version "0.34.0"
-    id("com.github.johnrengelman.shadow")
+    id("com.vanniktech.maven.publish") version "0.20.0"
+    id("com.gradleup.shadow")
     id("org.jlleitschuh.gradle.ktlint")
 }
 
 group = "nl.jolanrensen.kodex"
 version = "0.4.5-SNAPSHOT"
 
+val kotlinVersion = "2.2.10"
+
 repositories {
     mavenCentral()
     mavenLocal()
+}
+
+configurations.all {
+    resolutionStrategy {
+        force(
+            "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion",
+            "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion",
+            "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion",
+            "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion",
+        )
+    }
 }
 
 dependencies {

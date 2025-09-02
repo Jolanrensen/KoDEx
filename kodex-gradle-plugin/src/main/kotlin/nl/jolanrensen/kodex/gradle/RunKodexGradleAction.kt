@@ -4,7 +4,6 @@ import kotlinx.coroutines.runBlocking
 import nl.jolanrensen.kodex.RunKodexAction
 import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
-import org.jetbrains.dokka.DokkaSourceSetImpl
 import java.io.File
 
 /**
@@ -20,7 +19,7 @@ abstract class RunKodexGradleAction :
         RunKodexAction.Parameters,
         WorkParameters {
         override var baseDir: File
-        override var sources: DokkaSourceSetImpl
+        override var sources: SourceSetSpec
         override var sourceRoots: List<File>
         override var target: File?
         override var exportAsHtmlDir: File?
