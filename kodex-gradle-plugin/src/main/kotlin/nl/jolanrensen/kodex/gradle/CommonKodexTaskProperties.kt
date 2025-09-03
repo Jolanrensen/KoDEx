@@ -252,8 +252,9 @@ internal fun Project.maybeCreateRuntimeConfiguration(): Configuration =
         isCanBeConsumed = false
         isCanBeResolved = true
 
-//        val dokkaVersion = "2.1.0-Beta"
-        val dokkaVersion = "2.0.0"
+        val dokkaVersion = "2.1.0-Beta"
+//        val dokkaVersion = "2.0.0"
+//        val kotlinVersion = "2.0.21"
 
         listOf(
             "org.jetbrains.dokka:analysis-kotlin-api:$dokkaVersion",
@@ -263,6 +264,18 @@ internal fun Project.maybeCreateRuntimeConfiguration(): Configuration =
             "org.jetbrains.dokka:dokka-base-test-utils:$dokkaVersion",
             "org.jetbrains.dokka:dokka-gradle-plugin:$dokkaVersion",
         ).forEach { dependencies += project.dependencies.create(it) }
+
+//        resolutionStrategy {
+//            it.force(
+//                "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion",
+//                "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion",
+//                "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion",
+//                "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion",
+//                // keep compiler artifacts aligned if any transitive pulls them in
+//                "org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion",
+//                "org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:$kotlinVersion",
+//            )
+//        }
     }
 
 internal fun <T : Any> NamedDomainObjectContainer<T>.maybeCreate(name: String, configuration: T.() -> Unit): T =

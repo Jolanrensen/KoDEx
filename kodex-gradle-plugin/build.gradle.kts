@@ -18,8 +18,8 @@ version = "0.4.5-SNAPSHOT"
 
 val kotlinVersion = "2.2.10"
 // Keep Dokka at 2.1.0-Beta as requested
-//val dokkaVersion = "2.1.0-Beta"
-val dokkaVersion = "2.0.0"
+val dokkaVersion = "2.1.0-Beta"
+//val dokkaVersion = "2.0.0"
 
 publishing {
     repositories {
