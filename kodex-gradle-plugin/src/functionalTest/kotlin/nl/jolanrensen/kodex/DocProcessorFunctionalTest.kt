@@ -69,6 +69,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
     private val propertiesFile =
         """
         org.gradle.jvmargs=-Xmx6g
+        tosAccepted = true
         """.trimIndent()
 
     @Language("kts")
@@ -79,6 +80,12 @@ abstract class DocProcessorFunctionalTest(name: String) {
                 mavenLocal()
                 gradlePluginPortal()
                 mavenCentral()
+            }
+        }
+        develocity {
+            buildScan {
+                termsOfUseUrl.set("https://gradle.com/help/legal-terms-of-use")
+                termsOfUseAgree.set("yes")
             }
         }
         """.trimIndent()
@@ -170,6 +177,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
         processors: List<String>,
         plugins: List<String> = emptyList(),
         additionals: List<Additional> = emptyList(),
+        buildScan: Boolean = false,
     ): String {
         initializeProjectFiles(processors = processors, plugins = plugins)
         writeAdditionalFiles(additionals)
@@ -184,7 +192,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
         val sourceFile = File(sourceDirectory, fileNameWithExtension)
         sourceFile.write(content)
 
-        runBuild()
+        runBuild(buildScan)
 
         val destinationFile = File(destinationDirectory, fileNameWithExtension)
         return destinationFile.readText()
@@ -251,10 +259,15 @@ abstract class DocProcessorFunctionalTest(name: String) {
     /**
      * Runs the build and returns the result.
      */
-    private fun runBuild(): BuildResult =
+    private fun runBuild(buildScan: Boolean): BuildResult =
         GradleRunner.create()
             .forwardOutput()
-            .withArguments("preprocessMainKodex")
+            .withArguments(
+                *buildList {
+                    this += "preprocessMainKodex"
+                    if (buildScan) this += "--scan"
+                }.toTypedArray(),
+            )
             .withProjectDir(projectDirectory)
             .withDebug(true)
             .build()

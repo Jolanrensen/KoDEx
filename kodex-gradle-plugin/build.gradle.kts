@@ -73,7 +73,9 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-core:5.5.5")
 
     // shadowed in kodex-common for intellij plugin, but we need it here (safe to keep)
-    implementation("org.jetbrains:markdown-jvm:0.6.1")
+    implementation("org.jetbrains:markdown-jvm:0.6.1") {
+        exclude(group = "org.jetbrains.kotlin")
+    }
 }
 
 tasks.shadowJar {

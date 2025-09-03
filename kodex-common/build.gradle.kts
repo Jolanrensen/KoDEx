@@ -34,13 +34,15 @@ dependencies {
     implementation(kotlin("stdlib"))
     implementation("org.apache.commons:commons-text:1.10.0")
 
-    shadow("org.jetbrains:markdown-jvm:0.6.1")
+    shadow("org.jetbrains:markdown-jvm:0.6.1") {
+        exclude(group = "org.jetbrains.kotlin")
+    }
     api("org.jgrapht:jgrapht-core:1.5.2")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 
     // logging
-    api("io.github.oshai:kotlin-logging:7.0.0")
+    api("io.github.oshai:kotlin-logging:7.0.13")
 
     // Use JUnit test framework for unit tests
     testImplementation(kotlin("test"))

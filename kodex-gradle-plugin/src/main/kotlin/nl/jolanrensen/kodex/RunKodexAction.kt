@@ -114,6 +114,7 @@ abstract class RunKodexAction {
     protected suspend fun process() {
         // analyse the sources with dokka to get the documentables
         log.lifecycle { "Analyzing sources..." }
+        log.lifecycle { "Running RunKodexAction using Kotlin: ${KotlinVersion.CURRENT}" }
         val (sourceDocs, time) = measureTimedValue {
             analyseSourcesWithDokka()
         }

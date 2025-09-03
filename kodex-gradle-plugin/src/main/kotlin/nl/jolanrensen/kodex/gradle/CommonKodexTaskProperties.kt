@@ -254,10 +254,10 @@ internal fun Project.maybeCreateRuntimeConfiguration(): Configuration =
 
         val dokkaVersion = "2.1.0-Beta"
 //        val dokkaVersion = "2.0.0"
-//        val kotlinVersion = "2.0.21"
+        val kotlinVersion = "2.2.10"
 
         listOf(
-            "org.jetbrains.dokka:analysis-kotlin-api:$dokkaVersion",
+//            "org.jetbrains.dokka:analysis-kotlin-api:$dokkaVersion",
             "org.jetbrains.dokka:analysis-kotlin-symbols:$dokkaVersion",
             "org.jetbrains.dokka:dokka-base:$dokkaVersion",
             "org.jetbrains.dokka:dokka-core:$dokkaVersion",

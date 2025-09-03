@@ -178,6 +178,7 @@ class PluginExtensionTest : DocProcessorFunctionalTest("extension") {
             packageName = "com.example.plugin",
             processors = processors,
             plugins = plugins,
+            // buildScan = true,
         ) shouldBe expectedOutput
     }
 }
