@@ -23,14 +23,18 @@ import nl.jolanrensen.kodex.utils.toIntRange
 import nl.jolanrensen.kodex.utils.toTextRange
 import org.jetbrains.dokka.CoreExtensions
 import org.jetbrains.dokka.DokkaBootstrapImpl
+import org.jetbrains.dokka.DokkaConfiguration
 import org.jetbrains.dokka.DokkaConfigurationImpl
 import org.jetbrains.dokka.DokkaGenerator
+import org.jetbrains.dokka.DokkaSourceSetID
 import org.jetbrains.dokka.DokkaSourceSetImpl
+import org.jetbrains.dokka.Platform
 import org.jetbrains.dokka.base.DokkaBase
 import org.jetbrains.dokka.model.WithSources
 import org.jetbrains.dokka.model.withDescendants
 import java.io.File
 import java.io.IOException
+import java.io.Serializable
 import kotlin.time.DurationUnit
 import kotlin.time.measureTimedValue
 
@@ -51,9 +55,20 @@ private val log = KotlinLogging.logger {}
  */
 abstract class RunKodexAction {
 
+    // Neutral DTO: no Dokka references here
+    data class SourceSetSpec(
+        val name: String,
+        val sourceRoots: List<File>,
+        val languageVersion: String?,
+        val apiVersion: String?,
+        val analysisPlatform: String?, // uses org.jetbrains.dokka.Platform values
+        // Optional: if you want to control module name (defaults to "module")
+        val moduleName: String = "module",
+    ) : Serializable
+
     interface Parameters {
         val baseDir: File
-        val sources: DokkaSourceSetImpl
+        val sources: SourceSetSpec
         val sourceRoots: List<File>
         val target: File?
         val exportAsHtmlDir: File?
@@ -66,9 +81,25 @@ abstract class RunKodexAction {
 
     abstract val parameters: Parameters
 
+    val sources by lazy {
+        parameters.sources.let {
+            DokkaSourceSetImpl(
+                sourceSetID = DokkaSourceSetID(it.moduleName, it.name),
+                displayName = it.name,
+                sourceRoots = it.sourceRoots.toSet(),
+                documentedVisibilities = DokkaConfiguration.Visibility.entries.toSet(),
+                includeNonPublic = true,
+                analysisPlatform = it.analysisPlatform?.let { Platform.fromString(it) } ?: Platform.DEFAULT,
+                languageVersion = it.languageVersion,
+                apiVersion = it.apiVersion,
+            )
+        }
+    }
+
     protected suspend fun process() {
         // analyse the sources with dokka to get the documentables
         log.lifecycle { "Analyzing sources..." }
+        log.lifecycle { "Running RunKodexAction using Kotlin: ${KotlinVersion.CURRENT}" }
         val (sourceDocs, time) = measureTimedValue {
             analyseSourcesWithDokka()
         }
@@ -118,7 +149,7 @@ abstract class RunKodexAction {
     private fun analyseSourcesWithDokka(): (List<DocProcessor>) -> DocumentablesByPath {
         // initialize dokka with the sources
         val configuration = DokkaConfigurationImpl(
-            sourceSets = listOf(parameters.sources),
+            sourceSets = listOf(sources),
         )
         val logger = DokkaBootstrapImpl.DokkaProxyLogger { level, message ->
             with(log) {
@@ -145,7 +176,7 @@ abstract class RunKodexAction {
         // execute the translators on the sources to gather the modules
         val modules = translators.map {
             it.invoke(
-                sourceSet = parameters.sources,
+                sourceSet = sources,
                 context = context,
             )
         }
@@ -162,7 +193,7 @@ abstract class RunKodexAction {
             pathsWithoutSources += withoutSources.mapNotNull { it.dri.fullyQualifiedExtensionPath }
 
             documentables += withSources.mapNotNull {
-                val source = (it as WithSources).sources[parameters.sources]
+                val source = (it as WithSources).sources[sources]
                     ?: return@mapNotNull null
 
                 DocumentableWrapper.createFromDokkaOrNull(

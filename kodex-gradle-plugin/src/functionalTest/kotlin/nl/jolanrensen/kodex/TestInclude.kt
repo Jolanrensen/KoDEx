@@ -1047,6 +1047,45 @@ class TestInclude : DocProcessorFunctionalTest(name = "include") {
     }
 
     @Test
+    fun `nested type alias reading`() {
+        @Language("kt")
+        val content = """
+            interface A { 
+                /**
+                 * Hello World!
+                 */
+                typealias HelloWorld = String 
+            }
+            
+            /**
+             * @include [A.HelloWorld]
+             */
+            fun helloWorld2() {}
+        """.trimIndent()
+
+        @Language("kt")
+        val expectedOutput = """
+            interface A { 
+                /**
+                 * Hello World!
+                 */
+                typealias HelloWorld = String 
+            }
+            
+            /**
+             * Hello World!
+             */
+            fun helloWorld2() {}
+        """.trimIndent()
+
+        processContent(
+            content = content,
+            packageName = "",
+            processors = processors,
+        ) shouldBe expectedOutput
+    }
+
+    @Test
     fun `type alias writing`() {
         @Language("kt")
         val content = """
@@ -1072,6 +1111,45 @@ class TestInclude : DocProcessorFunctionalTest(name = "include") {
              * Hello World!
              */
             typealias HelloWorld2 = String
+        """.trimIndent()
+
+        processContent(
+            content = content,
+            packageName = "",
+            processors = processors,
+        ) shouldBe expectedOutput
+    }
+
+    @Test
+    fun `nested type alias writing`() {
+        @Language("kt")
+        val content = """
+            /**
+             * Hello World!
+             */
+            fun helloWorld() {}
+            
+            interface A {
+                /**
+                 * @include [helloWorld]
+                 */
+                typealias HelloWorld2 = String
+            }
+        """.trimIndent()
+
+        @Language("kt")
+        val expectedOutput = """
+            /**
+             * Hello World!
+             */
+            fun helloWorld() {}
+            
+            interface A {
+                /**
+                 * Hello World!
+                 */
+                typealias HelloWorld2 = String
+            }
         """.trimIndent()
 
         processContent(

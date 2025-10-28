@@ -20,6 +20,7 @@ import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Nested
+import org.gradle.api.tasks.Optional
 import java.io.File
 
 interface CommonKodexTaskProperties {
@@ -85,17 +86,17 @@ interface CommonKodexTaskProperties {
      * The arguments to be passed on to the processors.
      */
     @get:Input
-    val arguments: MapProperty<String, Any?>
+    val arguments: MapProperty<String, Any>
 
     /**
      * The arguments to be passed on to the processors.
      */
-    fun arguments(map: Map<String, Any?>): Unit = arguments.set(map)
+    fun arguments(map: Map<String, Any>): Unit = arguments.set(map)
 
     /**
      * The arguments to be passed on to the processors.
      */
-    fun arguments(vararg arguments: Pair<String, Any?>): Unit = this.arguments.set(arguments.toMap())
+    fun arguments(vararg arguments: Pair<String, Any>): Unit = this.arguments.set(arguments.toMap())
 
     /** The classpath of this task. */
     @get:Classpath
@@ -135,6 +136,30 @@ interface CommonKodexTaskProperties {
      * ```
      */
     fun dependencies(action: Action<DependencySetPluginDsl>): Unit = action.execute(dependencies.get())
+
+    /** like "2.3", uses languageVersion or latest stable if not supplied. */
+    @get:Input
+    @get:Optional
+    val apiVersion: Property<String>
+
+    /** like "2.3", uses languageVersion or latest stable if not supplied. */
+    fun apiVersion(version: String?): Unit = apiVersion.set(version)
+
+    /** like "2.3", uses latest stable if not supplied. */
+    @get:Input
+    @get:Optional
+    val languageVersion: Property<String>
+
+    /** like "2.3", uses latest stable if not supplied. */
+    fun languageVersion(version: String?): Unit = languageVersion.set(version)
+
+    /** Accepts [org.jetbrains.dokka.Platform] values. */
+    @get:Input
+    @get:Optional
+    val analysisPlatform: Property<String>
+
+    /** Accepts [org.jetbrains.dokka.Platform] values. */
+    fun analysisPlatform(platform: String?): Unit = analysisPlatform.set(platform)
 }
 
 abstract class ExportAsHtmlDsl {
@@ -218,6 +243,10 @@ fun CommonKodexTaskProperties.applyConventions(project: Project, factory: Object
     arguments.convention(emptyMap())
     classpath.convention(project.maybeCreateRuntimeConfiguration())
 
+    languageVersion.convention(null as String?)
+    apiVersion.convention(null as String?)
+    analysisPlatform.convention(null as String?)
+
     val exportAsHtmlInstance = factory.newInstance(ExportAsHtmlDsl::class.java)
     exportAsHtmlInstance.dir.convention(target.map { File(it, "htmlExports") })
     exportAsHtmlInstance.outputReadOnly.convention(true)
@@ -249,15 +278,31 @@ fun CommonKodexTaskProperties.applyConventions(project: Project, factory: Object
 
 internal fun Project.maybeCreateRuntimeConfiguration(): Configuration =
     project.configurations.maybeCreate("kotlinKdocIncludePluginRuntime") {
-        isCanBeConsumed = true
-        val dokkaVersion = "2.0.0"
+        isCanBeConsumed = false
+        isCanBeResolved = true
 
-        dependencies.add(project.dependencies.create("org.jetbrains.dokka:analysis-kotlin-api:$dokkaVersion"))
-        dependencies.add(
-            project.dependencies.create("org.jetbrains.dokka:analysis-kotlin-symbols:$dokkaVersion"),
-        )
-        dependencies.add(project.dependencies.create("org.jetbrains.dokka:dokka-base:$dokkaVersion"))
-        dependencies.add(project.dependencies.create("org.jetbrains.dokka:dokka-core:$dokkaVersion"))
+        val dokkaVersion = "2.1.0"
+
+        listOf(
+//            "org.jetbrains.dokka:analysis-kotlin-api:$dokkaVersion",
+            "org.jetbrains.dokka:analysis-kotlin-symbols:$dokkaVersion",
+            "org.jetbrains.dokka:dokka-base:$dokkaVersion",
+            "org.jetbrains.dokka:dokka-core:$dokkaVersion",
+            "org.jetbrains.dokka:dokka-base-test-utils:$dokkaVersion",
+            "org.jetbrains.dokka:dokka-gradle-plugin:$dokkaVersion",
+        ).forEach { dependencies += project.dependencies.create(it) }
+
+//        resolutionStrategy {
+//            it.force(
+//                "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion",
+//                "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion",
+//                "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion",
+//                "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion",
+//                // keep compiler artifacts aligned if any transitive pulls them in
+//                "org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion",
+//                "org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:$kotlinVersion",
+//            )
+//        }
     }
 
 internal fun <T : Any> NamedDomainObjectContainer<T>.maybeCreate(name: String, configuration: T.() -> Unit): T =

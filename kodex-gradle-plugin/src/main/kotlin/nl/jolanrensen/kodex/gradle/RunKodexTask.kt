@@ -1,6 +1,7 @@
 package nl.jolanrensen.kodex.gradle
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import nl.jolanrensen.kodex.RunKodexAction
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
 import org.gradle.api.file.ConfigurableFileCollection
@@ -15,8 +16,6 @@ import org.gradle.api.tasks.OutputFiles
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.property
 import org.gradle.workers.WorkerExecutor
-import org.jetbrains.dokka.DokkaSourceSetID
-import org.jetbrains.dokka.gradle.GradleDokkaSourceSetBuilder
 import java.io.File
 import javax.inject.Inject
 
@@ -123,16 +122,13 @@ abstract class RunKodexTask
             log.info { "Using runtime classpath: ${runtime.joinToString("\n")}" }
 
             val sourceSetName = "sourceSet"
-            val sources = GradleDokkaSourceSetBuilder(
+            val sourceSetSpec = RunKodexAction.SourceSetSpec(
                 name = sourceSetName,
-                project = project,
-                sourceSetIdFactory = { DokkaSourceSetID(it, sourceSetName) },
-            ).apply {
-                sourceRoots.forEach {
-                    if (it.exists()) sourceRoot(it)
-                }
-                apiVersion.set("2.0")
-            }.build()
+                sourceRoots = sourceRoots.filter { it.exists() },
+                languageVersion = languageVersion.getOrNull(),
+                apiVersion = apiVersion.getOrNull(),
+                analysisPlatform = analysisPlatform.getOrNull(),
+            )
 
             val workQueue = workerExecutor.classLoaderIsolation {
                 it.classpath.setFrom(runtime)
@@ -140,7 +136,7 @@ abstract class RunKodexTask
 
             workQueue.submit(RunKodexGradleAction::class.java) {
                 it.baseDir = baseDir.get()
-                it.sources = sources
+                it.sources = sourceSetSpec
                 it.sourceRoots = sourceRoots
                 it.target = target
                 it.processors = processors
