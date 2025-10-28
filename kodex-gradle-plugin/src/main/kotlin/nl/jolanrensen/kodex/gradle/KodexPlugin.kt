@@ -69,7 +69,6 @@ class KodexPlugin : Plugin<Project> {
         val inputSourceSet = taskCreator.inputSourceSet.get()
         val sourceSetName = taskCreator.newSourceSetName.get()
         val taskName = taskCreator.taskName.get()
-        val isMain = taskCreator.isMainSourceSet.get()
 
         val task = tasks.createRunKodexTask(
             name = taskName,
@@ -83,11 +82,36 @@ class KodexPlugin : Plugin<Project> {
             }
         }
 
-        val kodexSourceSet = kotlinSourceSets.create(sourceSetName) {
-            it.kotlin.setSrcDirs(task.calculateTargets())
-            it.resources.setSrcDirs(inputSourceSet.resources.sourceDirectories)
-            inputSourceSet.copyDependenciesTo(it, this)
+        val kodexSourceSet = kotlinSourceSets.maybeCreate(sourceSetName) {
+            kotlin.setSrcDirs(task.calculateTargets())
+            resources.setSrcDirs(inputSourceSet.resources.sourceDirectories)
+            inputSourceSet.copyDependenciesTo(this, this@configureRunKodexTasks)
         }
+
+        try {
+            // TODO
+            createCompilationsAndJarTasks(
+                taskCreator = taskCreator,
+                kotlinExtension = kotlinExtension,
+                inputSourceSet = inputSourceSet,
+                sourceSetName = sourceSetName,
+                task = task,
+                kodexSourceSet = kodexSourceSet,
+            )
+        } catch (e: Exception) {
+            logger.warn("Failed to create compilations and jar tasks for $sourceSetName", e)
+        }
+    }
+
+    private fun Project.createCompilationsAndJarTasks(
+        taskCreator: KodexSourceSetTaskBuilder,
+        kotlinExtension: KotlinProjectExtension,
+        inputSourceSet: KotlinSourceSet,
+        sourceSetName: String,
+        task: RunKodexTask,
+        kodexSourceSet: KotlinSourceSet,
+    ) {
+        val isMain = taskCreator.isMainSourceSet.get()
 
         val targetsOfInputSourceSet = kotlinExtension.targets.filter { target ->
             // TODO temp turned off for multiplatform
@@ -193,7 +217,7 @@ class KodexPlugin : Plugin<Project> {
     ) {
         val target = kotlinExtension.target
         val compilation = compilationsOfKodexSourceSet[target]
-            ?: error("Compilation of $target not found")
+            ?: error("Compilation of $target not found, we only have: $compilationsOfKodexSourceSet")
 
         when (target) {
             is KotlinWithJavaTarget<*, *>, is KotlinJvmTarget -> {

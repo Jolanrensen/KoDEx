@@ -23,12 +23,14 @@ import nl.jolanrensen.kodex.utils.toIntRange
 import nl.jolanrensen.kodex.utils.toTextRange
 import org.jetbrains.dokka.CoreExtensions
 import org.jetbrains.dokka.DokkaBootstrapImpl
+import org.jetbrains.dokka.DokkaConfiguration
 import org.jetbrains.dokka.DokkaConfigurationImpl
 import org.jetbrains.dokka.DokkaGenerator
 import org.jetbrains.dokka.DokkaSourceSetID
 import org.jetbrains.dokka.DokkaSourceSetImpl
 import org.jetbrains.dokka.Platform
 import org.jetbrains.dokka.base.DokkaBase
+import org.jetbrains.dokka.gradle.GradleDokkaSourceSetBuilder
 import org.jetbrains.dokka.model.WithSources
 import org.jetbrains.dokka.model.withDescendants
 import java.io.File
@@ -80,35 +82,18 @@ abstract class RunKodexAction {
 
     val sources by lazy {
         parameters.sources.let {
-            buildDokkaSourceSet(
-                name = it.name,
-                moduleName = it.moduleName,
-                apiVersion = it.apiVersion,
-                roots = it.sourceRoots,
+            DokkaSourceSetImpl(
+                sourceSetID = DokkaSourceSetID(it.moduleName, it.name),
+                displayName = it.name,
+                sourceRoots = it.sourceRoots.toSet(),
+                documentedVisibilities = DokkaConfiguration.Visibility.entries.toSet(),
+                includeNonPublic = true,
+                // Optional but recommended: make sure platform/api/lang are set
+//                analysisPlatform = Platform.jvm,
+//                apiVersion = it.apiVersion,
+                languageVersion = "2.3",
             )
         }
-    }
-
-    // Runs inside the isolated worker classloader; Dokka classes are available here.
-    private fun buildDokkaSourceSet(
-        name: String,
-        moduleName: String,
-        apiVersion: String,
-        roots: List<File>,
-    ): DokkaSourceSetImpl {
-        val id = DokkaSourceSetID(moduleName, name)
-
-        // Construct a minimal, valid DokkaSourceSetImpl for JVM analysis.
-        // Dokka 2.1.0-Beta provides defaults for most parameters, so we only set the essentials.
-        return DokkaSourceSetImpl(
-            sourceSetID = id,
-            displayName = name,
-            sourceRoots = roots.toSet(),
-            // Optional but recommended: make sure platform/api/lang are set
-            analysisPlatform = Platform.jvm,
-            apiVersion = apiVersion,
-            languageVersion = apiVersion,
-        )
     }
 
     protected suspend fun process() {

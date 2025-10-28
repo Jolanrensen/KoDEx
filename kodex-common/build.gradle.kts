@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     java
     kotlin("jvm")
-    id("com.vanniktech.maven.publish") version "0.20.0"
+    id("com.vanniktech.maven.publish")
     id("com.gradleup.shadow")
     id("org.jlleitschuh.gradle.ktlint")
 }
@@ -34,9 +34,7 @@ dependencies {
     implementation(kotlin("stdlib"))
     implementation("org.apache.commons:commons-text:1.10.0")
 
-    shadow("org.jetbrains:markdown-jvm:0.6.1") {
-        exclude(group = "org.jetbrains.kotlin")
-    }
+    shadow("org.jetbrains:markdown-jvm:0.6.1")
     api("org.jgrapht:jgrapht-core:1.5.2")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")

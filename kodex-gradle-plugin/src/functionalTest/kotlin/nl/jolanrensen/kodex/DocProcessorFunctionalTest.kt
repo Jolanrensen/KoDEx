@@ -82,12 +82,12 @@ abstract class DocProcessorFunctionalTest(name: String) {
                 mavenCentral()
             }
         }
-        develocity {
-            buildScan {
-                termsOfUseUrl.set("https://gradle.com/help/legal-terms-of-use")
-                termsOfUseAgree.set("yes")
-            }
-        }
+        // develocity {
+        //     buildScan {
+        //         termsOfUseUrl.set("https://gradle.com/help/legal-terms-of-use")
+        //         termsOfUseAgree.set("yes")
+        //     }
+        // }
         """.trimIndent()
 
     @Language("kts")
@@ -127,6 +127,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
         
         tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
             compilerOptions.jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
+            compilerOptions.freeCompilerArgs.add("-Xnested-type-aliases")
         }
         java {
             toolchain {
@@ -266,6 +267,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
                 *buildList {
                     this += "preprocessMainKodex"
                     if (buildScan) this += "--scan"
+                    this += "--stacktrace"
                 }.toTypedArray(),
             )
             .withProjectDir(projectDirectory)

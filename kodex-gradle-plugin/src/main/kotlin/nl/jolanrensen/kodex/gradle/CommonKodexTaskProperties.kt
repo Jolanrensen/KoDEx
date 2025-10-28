@@ -85,17 +85,17 @@ interface CommonKodexTaskProperties {
      * The arguments to be passed on to the processors.
      */
     @get:Input
-    val arguments: MapProperty<String, Any?>
+    val arguments: MapProperty<String, Any>
 
     /**
      * The arguments to be passed on to the processors.
      */
-    fun arguments(map: Map<String, Any?>): Unit = arguments.set(map)
+    fun arguments(map: Map<String, Any>): Unit = arguments.set(map)
 
     /**
      * The arguments to be passed on to the processors.
      */
-    fun arguments(vararg arguments: Pair<String, Any?>): Unit = this.arguments.set(arguments.toMap())
+    fun arguments(vararg arguments: Pair<String, Any>): Unit = this.arguments.set(arguments.toMap())
 
     /** The classpath of this task. */
     @get:Classpath
@@ -252,9 +252,7 @@ internal fun Project.maybeCreateRuntimeConfiguration(): Configuration =
         isCanBeConsumed = false
         isCanBeResolved = true
 
-        val dokkaVersion = "2.1.0-Beta"
-//        val dokkaVersion = "2.0.0"
-        val kotlinVersion = "2.2.10"
+        val dokkaVersion = "2.1.0"
 
         listOf(
 //            "org.jetbrains.dokka:analysis-kotlin-api:$dokkaVersion",

@@ -16,10 +16,8 @@ plugins {
 group = "nl.jolanrensen.kodex"
 version = "0.4.5-SNAPSHOT"
 
-val kotlinVersion = "2.2.10"
-// Keep Dokka at 2.1.0-Beta as requested
-val dokkaVersion = "2.1.0-Beta"
-//val dokkaVersion = "2.0.0"
+val kotlinVersion = "2.2.21"
+val dokkaVersion = "2.1.0"
 
 publishing {
     repositories {
@@ -36,7 +34,7 @@ repositories {
     maven("https://plugins.gradle.org/m2/")
 }
 
-// Enforce Kotlin 2.2.10 for any Kotlin artifacts that appear transitively
+// Enforce Kotlin 2.2.21 for any Kotlin artifacts that appear transitively
 configurations.all {
     resolutionStrategy {
         force(
@@ -73,9 +71,7 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-core:5.5.5")
 
     // shadowed in kodex-common for intellij plugin, but we need it here (safe to keep)
-    implementation("org.jetbrains:markdown-jvm:0.6.1") {
-        exclude(group = "org.jetbrains.kotlin")
-    }
+    implementation("org.jetbrains:markdown-jvm:0.6.1")
 }
 
 tasks.shadowJar {
@@ -152,11 +148,11 @@ tasks.check {
 }
 
 tasks.withType<KotlinCompile> {
-    compilerOptions.jvmTarget = JvmTarget.JVM_11
+    compilerOptions.jvmTarget = JvmTarget.JVM_17
 }
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(11)
+        languageVersion = JavaLanguageVersion.of(17)
     }
 }

@@ -28,7 +28,7 @@ class PluginExtensionTest : DocProcessorFunctionalTest("extension") {
     private val buildFile: String = """
         plugins {  
             kotlin("jvm") version "2.2.10"
-            id("com.vanniktech.maven.publish") version "0.22.0"
+            id("com.vanniktech.maven.publish") version "0.34.0"
         }
 
         group = "nl.jolanrensen"
@@ -178,7 +178,6 @@ class PluginExtensionTest : DocProcessorFunctionalTest("extension") {
             packageName = "com.example.plugin",
             processors = processors,
             plugins = plugins,
-            // buildScan = true,
         ) shouldBe expectedOutput
     }
 }
