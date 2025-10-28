@@ -125,7 +125,9 @@ abstract class RunKodexTask
             val sourceSetSpec = RunKodexAction.SourceSetSpec(
                 name = sourceSetName,
                 sourceRoots = sourceRoots.filter { it.exists() },
-                apiVersion = "2.2", // TODO? make configurable
+                languageVersion = languageVersion.getOrNull(),
+                apiVersion = apiVersion.getOrNull(),
+                analysisPlatform = analysisPlatform.getOrNull(),
             )
 
             val workQueue = workerExecutor.classLoaderIsolation {

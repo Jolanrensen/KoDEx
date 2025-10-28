@@ -30,7 +30,6 @@ import org.jetbrains.dokka.DokkaSourceSetID
 import org.jetbrains.dokka.DokkaSourceSetImpl
 import org.jetbrains.dokka.Platform
 import org.jetbrains.dokka.base.DokkaBase
-import org.jetbrains.dokka.gradle.GradleDokkaSourceSetBuilder
 import org.jetbrains.dokka.model.WithSources
 import org.jetbrains.dokka.model.withDescendants
 import java.io.File
@@ -60,7 +59,9 @@ abstract class RunKodexAction {
     data class SourceSetSpec(
         val name: String,
         val sourceRoots: List<File>,
-        val apiVersion: String,
+        val languageVersion: String?,
+        val apiVersion: String?,
+        val analysisPlatform: String?, // uses org.jetbrains.dokka.Platform values
         // Optional: if you want to control module name (defaults to "module")
         val moduleName: String = "module",
     ) : Serializable
@@ -88,10 +89,9 @@ abstract class RunKodexAction {
                 sourceRoots = it.sourceRoots.toSet(),
                 documentedVisibilities = DokkaConfiguration.Visibility.entries.toSet(),
                 includeNonPublic = true,
-                // Optional but recommended: make sure platform/api/lang are set
-//                analysisPlatform = Platform.jvm,
-//                apiVersion = it.apiVersion,
-                languageVersion = "2.3",
+                analysisPlatform = it.analysisPlatform?.let { Platform.fromString(it) } ?: Platform.DEFAULT,
+                languageVersion = it.languageVersion,
+                apiVersion = it.apiVersion,
             )
         }
     }

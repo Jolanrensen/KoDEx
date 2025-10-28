@@ -20,6 +20,7 @@ import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Nested
+import org.gradle.api.tasks.Optional
 import java.io.File
 
 interface CommonKodexTaskProperties {
@@ -135,6 +136,30 @@ interface CommonKodexTaskProperties {
      * ```
      */
     fun dependencies(action: Action<DependencySetPluginDsl>): Unit = action.execute(dependencies.get())
+
+    /** like "2.3", uses languageVersion or latest stable if not supplied. */
+    @get:Input
+    @get:Optional
+    val apiVersion: Property<String>
+
+    /** like "2.3", uses languageVersion or latest stable if not supplied. */
+    fun apiVersion(version: String?): Unit = apiVersion.set(version)
+
+    /** like "2.3", uses latest stable if not supplied. */
+    @get:Input
+    @get:Optional
+    val languageVersion: Property<String>
+
+    /** like "2.3", uses latest stable if not supplied. */
+    fun languageVersion(version: String?): Unit = languageVersion.set(version)
+
+    /** Accepts [org.jetbrains.dokka.Platform] values. */
+    @get:Input
+    @get:Optional
+    val analysisPlatform: Property<String>
+
+    /** Accepts [org.jetbrains.dokka.Platform] values. */
+    fun analysisPlatform(platform: String?): Unit = analysisPlatform.set(platform)
 }
 
 abstract class ExportAsHtmlDsl {
@@ -217,6 +242,10 @@ fun CommonKodexTaskProperties.applyConventions(project: Project, factory: Object
     )
     arguments.convention(emptyMap())
     classpath.convention(project.maybeCreateRuntimeConfiguration())
+
+    languageVersion.convention(null as String?)
+    apiVersion.convention(null as String?)
+    analysisPlatform.convention(null as String?)
 
     val exportAsHtmlInstance = factory.newInstance(ExportAsHtmlDsl::class.java)
     exportAsHtmlInstance.dir.convention(target.map { File(it, "htmlExports") })
