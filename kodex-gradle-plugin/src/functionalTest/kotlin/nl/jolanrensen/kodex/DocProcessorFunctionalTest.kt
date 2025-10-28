@@ -68,7 +68,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
     @Language("properties")
     private val propertiesFile =
         """
-        org.gradle.jvmargs=-Xmx6g
+        org.gradle.jvmargs=-Xmx8g
         tosAccepted = true
         """.trimIndent()
 

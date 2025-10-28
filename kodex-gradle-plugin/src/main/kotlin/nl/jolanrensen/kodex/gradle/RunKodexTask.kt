@@ -128,6 +128,7 @@ abstract class RunKodexTask
                 languageVersion = languageVersion.getOrNull(),
                 apiVersion = apiVersion.getOrNull(),
                 analysisPlatform = analysisPlatform.getOrNull(),
+                classpath = project.files().toList(),
             )
 
             val workQueue = workerExecutor.classLoaderIsolation {

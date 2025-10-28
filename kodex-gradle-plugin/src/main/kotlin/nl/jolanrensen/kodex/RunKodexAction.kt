@@ -62,6 +62,7 @@ abstract class RunKodexAction {
         val languageVersion: String?,
         val apiVersion: String?,
         val analysisPlatform: String?, // uses org.jetbrains.dokka.Platform values
+        val classpath: List<File>,
         // Optional: if you want to control module name (defaults to "module")
         val moduleName: String = "module",
     ) : Serializable
@@ -85,8 +86,11 @@ abstract class RunKodexAction {
         parameters.sources.let {
             DokkaSourceSetImpl(
                 sourceSetID = DokkaSourceSetID(it.moduleName, it.name),
+                classpath = it.classpath,
                 displayName = it.name,
                 sourceRoots = it.sourceRoots.toSet(),
+                skipEmptyPackages = false,
+                skipDeprecated = false,
                 documentedVisibilities = DokkaConfiguration.Visibility.entries.toSet(),
                 includeNonPublic = true,
                 analysisPlatform = it.analysisPlatform?.let { Platform.fromString(it) } ?: Platform.DEFAULT,
