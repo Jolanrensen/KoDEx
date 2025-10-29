@@ -268,7 +268,6 @@ class DocProcessorService(private val project: Project) {
                 if (docContentFromCache != null) {
                     return documentableWrapper.copy(
                         docContent = docContentFromCache,
-                        tags = emptySet(),
                         isModified = true,
                     )
                 }

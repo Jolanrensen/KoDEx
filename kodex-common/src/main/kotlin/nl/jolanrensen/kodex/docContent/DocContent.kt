@@ -13,9 +13,58 @@ import java.util.SortedMap
 /**
  * Just the contents of the comment, without the `*`-stuff.
  */
-@JvmInline
-value class DocContent(val value: String) {
+class DocContent(val value: String) {
+    val structuredTags: List<KDocTag>
+
+    init {
+        structuredTags = parseKDocTags(value)
+    }
+
+    private fun parseKDocTags(rawKdoc: String): List<KDocTag> {
+        val tags = mutableListOf<KDocTag>()
+        val blocks = rawKdoc.asDocContent().splitPerBlock(ignoreKDocMarkers = true)
+
+        for (block in blocks) {
+            val blockText = block.value.trim()
+            val tagName = block.getTagNameOrNull()
+
+            if (tagName != null) {
+                // Basic parsing: further refinement needed for subject and description
+                val tagContentParts = blockText.removePrefix("@$tagName").trimStart().split(" ", limit = 2)
+                val subject = if (tagContentParts.isNotEmpty() && !tagContentParts[0].startsWith("\n") && tagContentParts[0].isNotBlank()) tagContentParts[0] else null
+                val description = if (tagContentParts.size > 1) tagContentParts[1] else (if (subject == null && tagContentParts.isNotEmpty()) tagContentParts[0] else "")
+
+                tags.add(
+                    KDocTag(
+                        tagName = tagName,
+                        subject = subject,
+                        description = DocContent(description)
+                    )
+                )
+            }
+        }
+        return tags
+    }
+
     override fun toString(): String = value
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as DocContent
+
+        if (value != other.value) return false
+        if (structuredTags != other.structuredTags) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = value.hashCode()
+        result = 31 * result + structuredTags.hashCode()
+        return result
+    }
 }
 
 fun String.asDocContent(): DocContent = DocContent(this)
