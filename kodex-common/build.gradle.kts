@@ -12,7 +12,7 @@ plugins {
 group = "nl.jolanrensen.kodex"
 version = "0.5.1-SNAPSHOT"
 
-val kotlinVersion = "2.2.10"
+val kotlinVersion = "2.2.21"
 
 repositories {
     mavenCentral()

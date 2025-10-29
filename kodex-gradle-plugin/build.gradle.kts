@@ -116,13 +116,6 @@ gradlePlugin {
         implementationClass = "nl.jolanrensen.kodex.gradle.KodexPlugin"
     }
 
-    // Deprecated: Will be deprecated in favor of nl.jolanrensen.kodex
-    val docProcessor by plugins.creating {
-        commonConfig()
-        description = "Deprecated: Will be deprecated in favor of nl.jolanrensen.kodex"
-        id = "nl.jolanrensen.docProcessor"
-    }
-
     val kodex by plugins.creating {
         commonConfig()
         id = "nl.jolanrensen.kodex"
