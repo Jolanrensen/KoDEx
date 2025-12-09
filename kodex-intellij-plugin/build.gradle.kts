@@ -8,7 +8,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     id("java")
     kotlin("jvm")
-    id("org.jetbrains.intellij.platform") version "2.6.0"
+    id("org.jetbrains.intellij.platform") version "2.10.5"
     id("org.jlleitschuh.gradle.ktlint")
 }
 
@@ -37,15 +37,19 @@ intellijPlatform {
         name = "/** KoDEx */: Kotlin Documentation Extensions"
         ideaVersion {
             sinceBuild = "243"
-            untilBuild = "252.*"
+            untilBuild = "253.*"
         }
     }
     pluginVerification {
         cliPath.set(file("verifier-all.jar"))
 
         ides {
-            ide(IntelliJPlatformType.IntellijIdeaCommunity, "2025.1")
-            ide(IntelliJPlatformType.IntellijIdeaUltimate, "2025.1")
+            create(IntelliJPlatformType.IntellijIdeaCommunity, "2025.3") {
+                useInstaller = false
+            }
+            create(IntelliJPlatformType.IntellijIdeaUltimate, "2025.3") {
+                useInstaller = false
+            }
             recommended()
         }
     }
