@@ -4,7 +4,7 @@ import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.observable.properties.ObservableMutableProperty
 import com.intellij.openapi.observable.properties.ObservableProperty
-import com.intellij.openapi.observable.util.whenDisposed
+import com.intellij.openapi.util.Disposer
 import org.jetbrains.annotations.PropertyKey
 import kotlin.enums.EnumEntries
 
@@ -34,6 +34,10 @@ sealed class Setting<T> : ObservableMutableProperty<T> {
     }
 
     private val listeners: MutableList<(T) -> Unit> = mutableListOf()
+
+    fun Disposable.whenDisposed(listener: () -> Unit) {
+        Disposer.register(this, Disposable { listener() })
+    }
 
     override fun afterChange(parentDisposable: Disposable?, listener: (T) -> Unit) {
         parentDisposable?.whenDisposed { listeners.remove(listener) }
