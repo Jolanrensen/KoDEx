@@ -1,6 +1,7 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.models.ProductRelease
+import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
 import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -109,4 +110,8 @@ java {
         languageVersion = JavaLanguageVersion.of(21)
         sourceCompatibility = JavaVersion.VERSION_21
     }
+}
+
+tasks.withType<PrepareSandboxTask> {
+    dependsOn(":kodex-common:shadowJar")
 }
