@@ -11,7 +11,7 @@ import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.DependencySet
+import org.gradle.api.file.FileCollection
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
@@ -100,7 +100,7 @@ interface CommonKodexTaskProperties {
 
     /** The classpath of this task. */
     @get:Classpath
-    val classpath: Property<Configuration>
+    val classpath: Property<FileCollection>
 
     @get:Nested
     val exportAsHtml: Property<ExportAsHtmlDsl>
@@ -121,7 +121,24 @@ interface CommonKodexTaskProperties {
      * ```
      */
     @get:Internal
-    val dependencies: Property<DependencySetPluginDsl>
+    val dependencies: DependencySetPluginDsl
+        get() = object : DependencySetPluginDsl {
+            /**
+             * Gets the set of declared dependencies directly contained in this configuration
+             * (ignoring super configurations).
+             *
+             * This method does not resolve the configuration. Therefore, the return value does not include
+             * transitive dependencies.
+             *
+             * @return the set of dependencies
+             * @see #extendsFrom(Configuration...)
+             */
+            override fun Project.plugin(dependencyNotation: Any) {
+                (classpath.get() as Configuration).dependencies.add(
+                    dependencies.create(dependencyNotation),
+                )
+            }
+        }
 
     /**
      * DSL to add plugin dependencies to the current task. If you want to include a processor from an external library,
@@ -135,7 +152,7 @@ interface CommonKodexTaskProperties {
      * }
      * ```
      */
-    fun dependencies(action: Action<DependencySetPluginDsl>): Unit = action.execute(dependencies.get())
+    fun dependencies(action: Action<DependencySetPluginDsl>): Unit = action.execute(dependencies)
 
     /** like "2.3", uses languageVersion or latest stable if not supplied. */
     @get:Input
@@ -201,7 +218,7 @@ interface DependencySetPluginDsl {
      *
      * @param dependencyNotation Dependency notation
      */
-    fun plugin(dependencyNotation: Any)
+    fun Project.plugin(dependencyNotation: Any)
 }
 
 fun CommonKodexTaskProperties.applyPropertiesFrom(other: CommonKodexTaskProperties) {
@@ -251,29 +268,6 @@ fun CommonKodexTaskProperties.applyConventions(project: Project, factory: Object
     exportAsHtmlInstance.dir.convention(target.map { File(it, "htmlExports") })
     exportAsHtmlInstance.outputReadOnly.convention(true)
     exportAsHtml.set(exportAsHtmlInstance)
-
-    dependencies.set(
-        object : DependencySetPluginDsl {
-            /**
-             * Gets the set of declared dependencies directly contained in this configuration
-             * (ignoring super configurations).
-             * <p>
-             * This method does not resolve the configuration. Therefore, the return value does not include
-             * transitive dependencies.
-             *
-             * @return the set of dependencies
-             * @see #extendsFrom(Configuration...)
-             */
-            val dependencies: DependencySet
-                get() = classpath.get().dependencies
-
-            override fun plugin(dependencyNotation: Any) {
-                dependencies.add(
-                    project.dependencies.create(dependencyNotation),
-                )
-            }
-        },
-    )
 }
 
 internal fun Project.maybeCreateRuntimeConfiguration(): Configuration =

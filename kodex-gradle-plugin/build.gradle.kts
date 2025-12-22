@@ -141,6 +141,7 @@ tasks.check {
 }
 
 tasks.withType<KotlinCompile> {
+    dependsOn(":kodex-common:shadowJar")
     compilerOptions.jvmTarget = JvmTarget.JVM_17
 }
 
