@@ -12,7 +12,6 @@ import org.gradle.api.artifacts.type.ArtifactTypeDefinition.JAR_TYPE
 import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.jvm.tasks.Jar
-import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.register
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
@@ -82,34 +81,21 @@ class KodexPlugin : Plugin<Project> {
             }
         }
 
-        val kodexSourceSet = kotlinSourceSets.maybeCreate(sourceSetName) {
-            kotlin.setSrcDirs(task.calculateTargets())
-            resources.setSrcDirs(inputSourceSet.resources.sourceDirectories)
-            inputSourceSet.copyDependenciesTo(this, this@configureRunKodexTasks)
-        }
-
-        try {
-            // TODO
-            createCompilationsAndJarTasks(
-                taskCreator = taskCreator,
-                kotlinExtension = kotlinExtension,
-                inputSourceSet = inputSourceSet,
-                sourceSetName = sourceSetName,
-                task = task,
-                kodexSourceSet = kodexSourceSet,
-            )
-        } catch (e: Exception) {
-            logger.warn("Failed to create compilations and jar tasks for $sourceSetName", e)
-        }
+        createCompilationsSourceSetsAndJarTasks(
+            taskCreator = taskCreator,
+            kotlinExtension = kotlinExtension,
+            inputSourceSet = inputSourceSet,
+            sourceSetName = sourceSetName,
+            task = task,
+        )
     }
 
-    private fun Project.createCompilationsAndJarTasks(
+    private fun Project.createCompilationsSourceSetsAndJarTasks(
         taskCreator: KodexSourceSetTaskBuilder,
         kotlinExtension: KotlinProjectExtension,
         inputSourceSet: KotlinSourceSet,
         sourceSetName: String,
         task: RunKodexTask,
-        kodexSourceSet: KotlinSourceSet,
     ) {
         val isMain = taskCreator.isMainSourceSet.get()
 
@@ -129,7 +115,15 @@ class KodexPlugin : Plugin<Project> {
                 } else {
                     "${sourceSetName}${target.name.replaceFirstChar { it.titlecase() }}"
                 }
+
             target.compilations.create(compilationName) {
+                // TODO test
+                // creates kodexSourceSet
+                it.defaultSourceSet {
+                    kotlin.setSrcDirs(task.calculateTargets())
+                    resources.setSrcDirs(inputSourceSet.resources.sourceDirectories)
+                    inputSourceSet.copyDependenciesTo(this, this@createCompilationsSourceSetsAndJarTasks)
+                }
                 it.compileTaskProvider.get().dependsOn(task)
                 // TODO does it need more setup?
             }
@@ -151,6 +145,8 @@ class KodexPlugin : Plugin<Project> {
             }
 
             is KotlinSingleTargetExtension<*> -> {
+                val kodexSourceSet = compilationsOfKodexSourceSet[kotlinExtension.target]!!.defaultSourceSet
+
                 if (taskCreator.generateJar.get()) {
                     createJarTaskSingleTarget(
                         kotlinExtension = kotlinExtension,
@@ -183,7 +179,7 @@ class KodexPlugin : Plugin<Project> {
         kodexSourceSet: KotlinSourceSet,
         task: RunKodexTask,
     ) {
-        val sourcesJar = tasks.create<Jar>(
+        val sourcesJar = tasks.register<Jar>(
             name = buildString {
                 append("kodex")
                 append(sourceSetName.replaceFirstChar { it.titlecase() })
@@ -204,7 +200,7 @@ class KodexPlugin : Plugin<Project> {
             dependsOn(task)
         }
         tasks.filter {
-            it != sourcesJar && "sourcesjar" in it.name.lowercase()
+            it.name != sourcesJar.name && "sourcesjar" in it.name.lowercase()
         }.forEach { it.dependsOn(sourcesJar) }
     }
 
