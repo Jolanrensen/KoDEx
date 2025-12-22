@@ -2,10 +2,10 @@ import nl.jolanrensen.kodex.defaultProcessors.ARG_DOC_PROCESSOR_LOG_NOT_FOUND
 import nl.jolanrensen.kodex.gradle.creatingRunKodexTask
 
 plugins {
-    kotlin("jvm") version "2.2.10"
+    kotlin("jvm") // version "2.2.21"
 
     // adding the Gradle plugin
-    id("nl.jolanrensen.kodex") version "0.4.5-SNAPSHOT"
+    id("nl.jolanrensen.kodex") version "0.5.1-SNAPSHOT"
 }
 
 group = "nl.jolanrensen.example"
@@ -29,6 +29,8 @@ dependencies {
 }
 
 // new experimental gradle extension
+// creates tasks: kodexMainKodexSourcesJar, kodexMainKodexJar
+// produces NAME-kodex.jar and NAME-kodex-sources.jar besides the normal NAME.jar and NAME-sources.jar
 kodex {
     preprocess(kotlin.sourceSets.main) {
         // optional setup
@@ -37,38 +39,40 @@ kodex {
 }
 
 // old KoDEx notation
-val kotlinMainSources: FileCollection = kotlin.sourceSets.main.get().kotlin.sourceDirectories
-
-val preprocessMainKodexOld by creatingRunKodexTask(sources = kotlinMainSources) {
-    arguments(ARG_DOC_PROCESSOR_LOG_NOT_FOUND to false)
-}
-
+// val kotlinMainSources: FileCollection = kotlin.sourceSets.main.get().kotlin.sourceDirectories
+//
+// val preprocessMainKodexOld by creatingRunKodexTask(sources = kotlinMainSources) {
+//    arguments(ARG_DOC_PROCESSOR_LOG_NOT_FOUND to false)
+// }
+//
+// kotlin.sourceSets["main"].kotlin.setSrcDirs(preprocessMainKodexOld.targets)
+//
 // Modify all Jar tasks such that before running the Kotlin sources are set to
 // the target of processKdocMain and they are returned back to normal afterwards.
-tasks.withType<Jar> {
-    dependsOn(preprocessMainKodexOld)
-    outputs.upToDateWhen { false }
-
-    doFirst {
-        kotlin {
-            sourceSets {
-                main {
-                    kotlin.setSrcDirs(preprocessMainKodexOld.targets)
-                }
-            }
-        }
-    }
-
-    doLast {
-        kotlin {
-            sourceSets {
-                main {
-                    kotlin.setSrcDirs(kotlinMainSources)
-                }
-            }
-        }
-    }
-}
+// tasks.withType<Jar> {
+//    dependsOn(preprocessMainKodexOld)
+//    outputs.upToDateWhen { false }
+//
+//    doFirst {
+//        kotlin {
+//            sourceSets {
+//                main {
+//                    kotlin.setSrcDirs(preprocessMainKodexOld.targets)
+//                }
+//            }
+//        }
+//    }
+//
+//    doLast {
+//        kotlin {
+//            sourceSets {
+//                main {
+//                    kotlin.setSrcDirs(kotlinMainSources)
+//                }
+//            }
+//        }
+//    }
+// }
 
 tasks.test {
     useJUnitPlatform()
