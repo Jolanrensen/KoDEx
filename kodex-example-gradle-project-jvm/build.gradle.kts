@@ -1,5 +1,4 @@
 import nl.jolanrensen.kodex.defaultProcessors.ARG_DOC_PROCESSOR_LOG_NOT_FOUND
-import nl.jolanrensen.kodex.gradle.creatingRunKodexTask
 
 plugins {
     kotlin("jvm") // version "2.2.21"
@@ -13,6 +12,7 @@ version = "1.0"
 
 repositories {
     mavenCentral()
+    mavenLocal()
     google()
 }
 
@@ -35,6 +35,22 @@ kodex {
     preprocess(kotlin.sourceSets.main) {
         // optional setup
         arguments(ARG_DOC_PROCESSOR_LOG_NOT_FOUND to false)
+
+        // Can be enabled if `PluginExtensionTest` has been run to test if extensions work
+//        processors = listOf(
+//            COMMENT_DOC_PROCESSOR,
+//            INCLUDE_DOC_PROCESSOR,
+//            INCLUDE_FILE_DOC_PROCESSOR,
+//            ARG_DOC_PROCESSOR,
+//            SAMPLE_DOC_PROCESSOR,
+//            EXPORT_AS_HTML_DOC_PROCESSOR,
+//            REMOVE_ESCAPE_CHARS_PROCESSOR,
+//            "nl.jolanrensen.extension.Extension",
+//        )
+//
+//        dependencies {
+//            plugin("nl.jolanrensen:PluginExtensionTest:0.5.1-SNAPSHOT")
+//        }
     }
 }
 

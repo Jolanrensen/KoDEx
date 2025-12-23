@@ -12,8 +12,10 @@ import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputFiles
 import org.gradle.api.tasks.TaskAction
+import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.property
 import org.gradle.workers.WorkerExecutor
 import java.io.File
@@ -27,8 +29,10 @@ private val log = KotlinLogging.logger { }
  */
 abstract class RunKodexTask
     @Inject
-    constructor(factory: ObjectFactory, project: Project) :
-    DefaultTask(),
+    constructor(
+        @get:Internal val factory: ObjectFactory,
+        project: Project,
+    ) : DefaultTask(),
         CommonKodexTaskProperties {
 
         init {
@@ -72,12 +76,17 @@ abstract class RunKodexTask
         fun calculateTargets(): FileCollection {
             val relativeSources = sources.get().map { it.relativeTo(baseDir.get()) }
             val target = target.get()
-            return project.files(relativeSources.map { File(target, it.path) })
+            return factory.fileCollection().from(relativeSources.map { File(target, it.path) })
         }
 
         /** Used by the task to execute [RunKodexGradleAction]. */
         @get:Inject
         abstract val workerExecutor: WorkerExecutor
+
+        @get:InputFiles
+        internal val projectClassPath: ListProperty<File> = factory
+            .listProperty<File>()
+            .convention(project.files().toList())
 
         @Deprecated(
             "This notation is no longer needed.",
@@ -108,7 +117,7 @@ abstract class RunKodexTask
 
             val sourceRoots = sources.get()
             val target = target.get()
-            val runtime = classpath.get().resolve()
+            val runtime = classpath.get() // .resolve()
             val processors = processors.get()
 
             (targets as ConfigurableFileCollection).setFrom(calculateTargets())
@@ -128,7 +137,7 @@ abstract class RunKodexTask
                 languageVersion = languageVersion.getOrNull(),
                 apiVersion = apiVersion.getOrNull(),
                 analysisPlatform = analysisPlatform.getOrNull(),
-                classpath = project.files().toList(),
+                classpath = projectClassPath.get(),
             )
 
             val workQueue = workerExecutor.classLoaderIsolation {
