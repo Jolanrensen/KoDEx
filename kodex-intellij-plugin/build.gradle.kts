@@ -14,7 +14,7 @@ plugins {
 }
 
 group = "nl.jolanrensen.kodex"
-version = "0.5.1-SNAPSHOT"
+version = "0.5.2-SNAPSHOT"
 
 repositories {
     mavenCentral()
