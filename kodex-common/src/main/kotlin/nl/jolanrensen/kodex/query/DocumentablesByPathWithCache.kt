@@ -181,6 +181,7 @@ open class DocumentablesByPathWithCache(
         queryContext: DocumentableWrapper,
         canBeCache: Boolean,
     ): List<MutableDocumentableWrapper>? {
+        val path = path.withoutBackticks()
         val res = queryCache.getOrPut(Pair(queryContext.identifier, path)) {
             queryNew(queryContext, path)
                 ?.filter(queryFilter)

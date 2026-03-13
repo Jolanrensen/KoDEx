@@ -40,19 +40,10 @@ interface DocumentablesByPath {
      *
      * Returns `null` if no [DocumentableWrapper] is found for the given [path] and [path]
      * does not exist in the project.
+     *
+     * @param path the path to be queried. This needs to call [withoutBackticks]!
      */
     fun query(path: String, queryContext: DocumentableWrapper, canBeCache: Boolean = false): List<DocumentableWrapper>?
-
-    @Deprecated(
-        "Use query instead",
-        ReplaceWith("query(path, queryContext, canBeCache)"),
-        level = DeprecationLevel.ERROR,
-    )
-    operator fun get(
-        path: String,
-        queryContext: DocumentableWrapper,
-        canBeCache: Boolean = false,
-    ): List<DocumentableWrapper>? = query(path, queryContext, canBeCache)
 
     operator fun get(identifier: UUID): DocumentableWrapper? =
         documentablesToProcess
@@ -79,6 +70,8 @@ interface DocumentablesByPath {
             loadedProcessors: List<DocProcessor>,
         ): MutableDocumentablesByPath = MutableDocumentablesByPathFromMap(map, loadedProcessors)
     }
+
+    fun String.withoutBackticks() = replace("`", "")
 }
 
 interface MutableDocumentablesByPath : DocumentablesByPath {
@@ -88,12 +81,6 @@ interface MutableDocumentablesByPath : DocumentablesByPath {
         queryContext: DocumentableWrapper,
         canBeCache: Boolean,
     ): List<MutableDocumentableWrapper>?
-
-    override operator fun get(
-        path: String,
-        queryContext: DocumentableWrapper,
-        canBeCache: Boolean,
-    ): List<MutableDocumentableWrapper>? = query(path, queryContext, canBeCache)
 
     override operator fun get(identifier: UUID): MutableDocumentableWrapper? =
         documentablesToProcess.values

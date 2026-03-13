@@ -35,7 +35,7 @@ open class DocumentablesByPathFromMap(
         path: String,
         queryContext: DocumentableWrapper,
         canBeCache: Boolean,
-    ): List<DocumentableWrapper>? = docsToQuery[path]
+    ): List<DocumentableWrapper>? = docsToQuery[path.withoutBackticks()]
 
     override fun toMutable(): MutableDocumentablesByPath =
         this as? MutableDocumentablesByPath ?: MutableDocumentablesByPathFromMap(
@@ -116,7 +116,7 @@ class MutableDocumentablesByPathFromMap(
         path: String,
         queryContext: DocumentableWrapper,
         canBeCache: Boolean,
-    ): List<MutableDocumentableWrapper>? = docsToQuery[path]
+    ): List<MutableDocumentableWrapper>? = docsToQuery[path.withoutBackticks()]
 
     override fun toMutable(): MutableDocumentablesByPath = this
 
