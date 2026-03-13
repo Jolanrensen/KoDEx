@@ -1158,4 +1158,38 @@ class TestInclude : DocProcessorFunctionalTest(name = "include") {
             processors = processors,
         ) shouldBe expectedOutput
     }
+
+    @Test
+    fun `name with backticks`() {
+
+        @Language("kt")
+        val content = """
+            /** Hello */
+            interface `An Interface`
+            
+            /** @include [`An Interface`] */
+            interface B
+            
+            /** @include [B] */
+            interface C
+        """.trimIndent()
+
+        @Language("kt")
+        val expectedOutput = """
+            /** Hello */
+            interface `An Interface`
+            
+            /** Hello */
+            interface B
+            
+            /** Hello */
+            interface C
+        """.trimIndent()
+
+        processContent(
+            content = content,
+            packageName = "",
+            processors = processors,
+        ) shouldBe expectedOutput
+    }
 }
