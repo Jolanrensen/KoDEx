@@ -275,7 +275,7 @@ internal fun Project.maybeCreateRuntimeConfiguration(): Configuration =
         isCanBeConsumed = false
         isCanBeResolved = true
 
-        val dokkaVersion = "2.1.0"
+        val dokkaVersion = "2.2.0-Beta"
 
         listOf(
 //            "org.jetbrains.dokka:analysis-kotlin-api:$dokkaVersion",

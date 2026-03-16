@@ -17,7 +17,7 @@ group = "nl.jolanrensen.kodex"
 version = "0.5.2-SNAPSHOT"
 
 val kotlinVersion = "2.2.21"
-val dokkaVersion = "2.1.0"
+val dokkaVersion = "2.2.0-Beta"
 
 publishing {
     repositories {
