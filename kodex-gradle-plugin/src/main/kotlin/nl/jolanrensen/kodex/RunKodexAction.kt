@@ -38,7 +38,7 @@ import java.io.Serializable
 import kotlin.time.DurationUnit
 import kotlin.time.measureTimedValue
 
-private val log = KotlinLogging.logger {}
+private val log = KotlinLogging.logger("KoDEx")
 
 /**
  * Process docs action.
@@ -161,7 +161,7 @@ abstract class RunKodexAction {
                     "debug" -> debug { message }
                     "info" -> info { message }
                     "progress" -> lifecycle { message }
-                    "warn" -> if (!message.startsWith("Couldn't resolve link for")) warn { message }
+                    "warn" -> if (!message.startsWith("Couldn't resolve link")) warn { message }
                     "error" -> error { message }
                     else -> info { message }
                 }
