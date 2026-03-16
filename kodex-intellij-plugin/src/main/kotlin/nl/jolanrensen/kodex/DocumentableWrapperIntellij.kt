@@ -14,6 +14,7 @@ import nl.jolanrensen.kodex.utils.lastIndexOfNot
 import nl.jolanrensen.kodex.utils.programmingLanguage
 import nl.jolanrensen.kodex.utils.toIntRange
 import nl.jolanrensen.kodex.utils.toSimpleImportPath
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.descriptors.CallableDescriptor
 import org.jetbrains.kotlin.idea.base.psi.kotlinFqName
@@ -51,6 +52,7 @@ fun DocumentableWrapper.Companion.createFromIntellijOrNull(
             }
         } else {
             // k1 method
+            @OptIn(K1Deprecation::class)
             (documentable as? KtDeclaration)
                 ?.descriptor
                 ?.let { it as CallableDescriptor }

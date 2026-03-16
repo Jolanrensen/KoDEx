@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     id("java")
     kotlin("jvm")
-    id("org.jetbrains.intellij.platform") version "2.10.5"
+    id("org.jetbrains.intellij.platform") version "2.13.0"
     id("org.jlleitschuh.gradle.ktlint")
 }
 
@@ -38,7 +38,7 @@ intellijPlatform {
         name = "/** KoDEx */: Kotlin Documentation Extensions"
         ideaVersion {
             sinceBuild = "252"
-            untilBuild = "253.*"
+            untilBuild = "262.*"
         }
     }
     pluginVerification {
@@ -64,9 +64,9 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-core:5.5.5")
 
     intellijPlatform {
-        intellijIdeaCommunity("252.27397.28")
+//        intellijIdeaCommunity("252.27397.28")
 //        intellijIdeaCommunity("251.26094.37")
-//        intellijIdeaUltimate("253.28294.325")
+        intellijIdeaUltimate("261.22158.121")
         bundledPlugins(
             "org.jetbrains.kotlin",
             "com.intellij.java",

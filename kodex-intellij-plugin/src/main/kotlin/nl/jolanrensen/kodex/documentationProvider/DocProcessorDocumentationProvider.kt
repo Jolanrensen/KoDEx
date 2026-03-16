@@ -19,6 +19,7 @@ import io.ktor.utils.io.CancellationException
 import nl.jolanrensen.kodex.services.DocProcessorService
 import nl.jolanrensen.kodex.utils.docComment
 import org.jetbrains.annotations.Nls
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.idea.KotlinDocumentationProvider
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFile
@@ -29,6 +30,7 @@ import java.util.function.Consumer
  * k1-like method to render multiple documentation items at once, TODO issue #54
  * Likely to be called often and fail even more, so catching all exceptions.
  */
+@OptIn(K1Deprecation::class)
 class DocProcessorDocumentationProvider :
     AbstractDocumentationProvider(),
     ExternalDocumentationProvider {

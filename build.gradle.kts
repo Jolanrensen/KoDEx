@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.2.21" apply false
+    kotlin("jvm") version "2.3.10" apply false
     id("com.gradleup.shadow") version "9.3.0" apply false
     id("org.jlleitschuh.gradle.ktlint") version "12.1.1"
     id("com.vanniktech.maven.publish") version "0.34.0" apply false
