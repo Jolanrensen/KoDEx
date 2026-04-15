@@ -87,12 +87,14 @@ class TestStringUtils {
     @Test
     fun `Replace KDoc links difficult`() {
         val someText =
-            """`MyType::myColumn`[`[`][ColumnsContainer.get]`MyOtherType::myOtherColumn`[`]`][ColumnsContainer.get]"""
+            """`MyType::myColumn`[`[`][ColumnsContainer.get]`MyOtherType::myOtherColumn`[`]`][`Columns Container`.get]"""
                 .asDocContent()
 
-        val res = someText.replaceKdocLinks { "NewPath" }
+        val res = someText.replaceKdocLinks { "$it.New Path" }
 
-        res shouldBe """`MyType::myColumn`[`[`][NewPath]`MyOtherType::myOtherColumn`[`]`][NewPath]""".asDocContent()
+        res shouldBe
+            """`MyType::myColumn`[`[`][ColumnsContainer.get.`New Path`]`MyOtherType::myOtherColumn`[`]`][`Columns Container`.get.`New Path`]"""
+                .asDocContent()
     }
 
     @Test

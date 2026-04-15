@@ -319,10 +319,14 @@ private const val UNICODE_DIGIT = "\\p{Nd}"
 private const val IDENTIFIER =
     "(?:$LETTER|_)[${LETTER}_$UNICODE_DIGIT]*|`[^\\r\\n`]+`"
 
+private val IDENTIFIER_REGEX = Regex(IDENTIFIER)
+
 // full regex:
 // (?:(?:[\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}]|_)[[\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}]_\p{Nd}]*|`[^\r\n`]+`)(?:\.(?:(?:[\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}]|_)[[\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}]_\p{Nd}]*|`[^\r\n`]+`)+)*
 @Language("regexp")
 private const val QUALIFIED_NAME = "(?:$IDENTIFIER)(?:\\.(?:$IDENTIFIER)+)*"
+
+private val QUALIFIED_NAME_REGEX = Regex(QUALIFIED_NAME)
 
 private fun StringBuilder.processReference(
     referenceState: ReferenceState,
@@ -333,8 +337,8 @@ private fun StringBuilder.processReference(
     when (referenceState) {
         INSIDE_REFERENCE -> {
             val originalRef = currentReferenceBlock.removePrefix("[")
-            if (originalRef matches QUALIFIED_NAME.toRegex()) {
-                val processedRef = process(originalRef)
+            if (originalRef matches QUALIFIED_NAME_REGEX) {
+                val processedRef = process(originalRef).fixReferenceIfInvalid()
                 if (processedRef == originalRef) {
                     append("[$originalRef")
                 } else {
@@ -346,8 +350,8 @@ private fun StringBuilder.processReference(
 
         INSIDE_ALIASED_REFERENCE -> {
             val originalRef = currentReferenceBlock.removePrefix("[")
-            if (originalRef matches QUALIFIED_NAME.toRegex()) {
-                val processedRef = process(originalRef)
+            if (originalRef matches QUALIFIED_NAME_REGEX) {
+                val processedRef = process(originalRef).fixReferenceIfInvalid()
                 append("[$processedRef")
                 currentReferenceBlock = ""
             }
@@ -357,3 +361,14 @@ private fun StringBuilder.processReference(
     }
     return currentReferenceBlock
 }
+
+private fun String.isValidReference() = this matches QUALIFIED_NAME_REGEX
+
+private fun String.fixReference() =
+    this.split('.').joinToString(".") {
+        if (it matches IDENTIFIER_REGEX) it else "`$it`"
+    }
+
+/** Makes sure references are valid. */
+private fun String.fixReferenceIfInvalid() =
+    if (!isValidReference()) fixReference() else this
