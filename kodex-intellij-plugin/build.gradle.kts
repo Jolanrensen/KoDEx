@@ -14,7 +14,7 @@ plugins {
 }
 
 group = "nl.jolanrensen.kodex"
-version = "0.5.3-SNAPSHOT"
+version = "0.5.4-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -64,9 +64,7 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-core:5.5.5")
 
     intellijPlatform {
-//        intellijIdeaCommunity("252.27397.28")
-//        intellijIdeaCommunity("251.26094.37")
-        intellijIdeaUltimate("261.22158.121")
+        intellijIdeaUltimate("261.23567.28")
         bundledPlugins(
             "org.jetbrains.kotlin",
             "com.intellij.java",
