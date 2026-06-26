@@ -59,6 +59,7 @@ abstract class RunKodexAction {
     data class SourceSetSpec(
         val name: String,
         val sourceRoots: List<File>,
+        val contextualSourceSets: List<SourceSetSpec>,
         val languageVersion: String?,
         val apiVersion: String?,
         val analysisPlatform: String?, // uses org.jetbrains.dokka.Platform values
@@ -82,23 +83,32 @@ abstract class RunKodexAction {
 
     abstract val parameters: Parameters
 
-    val sources by lazy {
-        parameters.sources.let {
-            DokkaSourceSetImpl(
-                sourceSetID = DokkaSourceSetID(it.moduleName, it.name),
-                classpath = it.classpath,
-                displayName = it.name,
-                sourceRoots = it.sourceRoots.toSet(),
-                skipEmptyPackages = false,
-                skipDeprecated = false,
-                documentedVisibilities = DokkaConfiguration.Visibility.entries.toSet(),
-                includeNonPublic = true,
-                analysisPlatform = it.analysisPlatform?.let { Platform.fromString(it) } ?: Platform.DEFAULT,
-                languageVersion = it.languageVersion,
-                apiVersion = it.apiVersion,
-            )
-        }
+    val sources: DokkaSourceSetImpl by lazy {
+        parameters.sources.toDokka()
     }
+
+    // filled by `sources`
+    val contextualSources: MutableSet<DokkaSourceSetImpl> = mutableSetOf()
+
+    private fun SourceSetSpec.toDokka(): DokkaSourceSetImpl =
+        DokkaSourceSetImpl(
+            sourceSetID = DokkaSourceSetID(moduleName, name),
+            classpath = classpath,
+            displayName = name,
+            dependentSourceSets = contextualSourceSets.map {
+                it.toDokka()
+                    .also { contextualSources += it }
+                    .sourceSetID
+            }.toSet(),
+            sourceRoots = sourceRoots.toSet(),
+            skipEmptyPackages = false,
+            skipDeprecated = false,
+            documentedVisibilities = DokkaConfiguration.Visibility.entries.toSet(),
+            includeNonPublic = true,
+            analysisPlatform = analysisPlatform?.let { Platform.fromString(it) } ?: Platform.DEFAULT,
+            languageVersion = languageVersion,
+            apiVersion = apiVersion,
+        )
 
     protected suspend fun process() {
         // analyse the sources with dokka to get the documentables
@@ -151,10 +161,9 @@ abstract class RunKodexAction {
     }
 
     private fun analyseSourcesWithDokka(): (List<DocProcessor>) -> DocumentablesByPath {
+        val allSources = listOf(sources, *contextualSources.toTypedArray())
         // initialize dokka with the sources
-        val configuration = DokkaConfigurationImpl(
-            sourceSets = listOf(sources),
-        )
+        val configuration = DokkaConfigurationImpl(sourceSets = allSources)
         val logger = DokkaBootstrapImpl.DokkaProxyLogger { level, message ->
             with(log) {
                 when (level) {
@@ -184,11 +193,19 @@ abstract class RunKodexAction {
                 context = context,
             )
         }
+        val contextualModules = contextualSources.flatMap { src ->
+            translators.map {
+                it.invoke(
+                    sourceSet = src,
+                    context = context,
+                )
+            }
+        }
 
         // collect the right documentables from the modules (only linkable elements with docs)
         val pathsWithoutSources = mutableSetOf<String>()
         val documentables = mutableListOf<DocumentableWrapper>()
-        modules.flatMap { it.withDescendants() }.let { rawDocs ->
+        (modules + contextualModules).flatMap { it.withDescendants() }.let { rawDocs ->
             // TODO: issue #13: support read-only docs
             val (withSources, withoutSources) = rawDocs.partition { it is WithSources }
 
@@ -196,12 +213,14 @@ abstract class RunKodexAction {
             pathsWithoutSources += withoutSources.map { it.dri.fullyQualifiedPath }
             pathsWithoutSources += withoutSources.mapNotNull { it.dri.fullyQualifiedExtensionPath }
 
-            documentables += withSources.mapNotNull {
-                val source = (it as WithSources).sources[sources]
-                    ?: return@mapNotNull null
+            documentables += withSources.mapNotNull { doc ->
+                val source =
+                    allSources.firstNotNullOfOrNull { src ->
+                        (doc as WithSources).sources[src]
+                    } ?: return@mapNotNull null
 
                 DocumentableWrapper.createFromDokkaOrNull(
-                    documentable = it,
+                    documentable = doc,
                     source = source,
                     logger = logger,
                 )
