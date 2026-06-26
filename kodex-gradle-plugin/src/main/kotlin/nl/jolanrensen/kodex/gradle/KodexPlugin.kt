@@ -66,6 +66,7 @@ class KodexPlugin : Plugin<Project> {
         kotlinExtension: KotlinProjectExtension,
     ) {
         val inputSourceSet = taskCreator.inputSourceSet.get()
+        val contextualSourceSets = taskCreator.contextualSourceSets.get()
         val sourceSetName = taskCreator.newSourceSetName.get()
         val taskName = taskCreator.taskName.get()
 
@@ -75,6 +76,9 @@ class KodexPlugin : Plugin<Project> {
         ) {
             group = "KoDEx"
             description = "Runs KoDEx $sourceSetName on the ${inputSourceSet.name} sources"
+            contextualSources.set(
+                contextualSourceSets.map { it.kotlin.sourceDirectories.toList() }
+            )
             applyPropertiesFrom(taskCreator)
             taskCreator.runOnTask.get().forEach {
                 it.execute(this)

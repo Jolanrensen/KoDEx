@@ -91,7 +91,11 @@ abstract class DocProcessorFunctionalTest(name: String) {
         """.trimIndent()
 
     @Language("kts")
-    private fun getBuildFileContent(processors: List<String>, plugins: List<String>): String =
+    private fun getBuildFileContent(
+        processors: List<String>,
+        plugins: List<String>,
+        contextualSourceSets: List<String>,
+    ): String =
         """
         import nl.jolanrensen.kodex.gradle.*
         import nl.jolanrensen.kodex.defaultProcessors.*
@@ -108,6 +112,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
         kodex {
             preprocess(kotlin.sourceSets.main) {
                 processors = listOf(${processors.joinToString()})
+                contextualSourceSets(${contextualSourceSets.joinToString()})
                 dependencies {
                 ${
             if (plugins.isEmpty()) {
@@ -178,9 +183,14 @@ abstract class DocProcessorFunctionalTest(name: String) {
         processors: List<String>,
         plugins: List<String> = emptyList(),
         additionals: List<Additional> = emptyList(),
+        contextualSourceSets: List<String> = emptyList(),
         buildScan: Boolean = false,
     ): String {
-        initializeProjectFiles(processors = processors, plugins = plugins)
+        initializeProjectFiles(
+            processors = processors,
+            plugins = plugins,
+            contextualSourceSets = contextualSourceSets,
+        )
         writeAdditionalFiles(additionals)
 
         // Get source- and destination directories based on the package name
@@ -202,7 +212,11 @@ abstract class DocProcessorFunctionalTest(name: String) {
     /**
      * Clears the project directory and creates the build files.
      */
-    private fun initializeProjectFiles(processors: List<String>, plugins: List<String> = emptyList()) {
+    private fun initializeProjectFiles(
+        processors: List<String>,
+        plugins: List<String> = emptyList(),
+        contextualSourceSets: List<String>,
+    ) {
         // Set up the test build
         projectDirectory.deleteRecursively()
         projectDirectory.mkdirs()
@@ -214,7 +228,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
             .write(propertiesFile)
 
         File(projectDirectory, "build.gradle.kts")
-            .write(getBuildFileContent(processors, plugins))
+            .write(getBuildFileContent(processors, plugins, contextualSourceSets))
     }
 
     /**

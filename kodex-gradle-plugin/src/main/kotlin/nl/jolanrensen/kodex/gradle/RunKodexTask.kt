@@ -46,6 +46,15 @@ abstract class RunKodexTask
         /** Source root folders for preprocessing. This needs to be set! */
         fun sources(files: Iterable<File>): Unit = sources.set(files)
 
+        /** Source root folders for preprocessing. */
+        @get:InputFiles
+        val contextualSources: ListProperty<List<File>> = factory
+            .listProperty<List<File>>()
+            .convention(emptyList())
+
+        /** Source root folders for preprocessing. */
+        fun contextualSources(files: Iterable<List<File>>): Unit = contextualSources.addAll(files)
+
         /**
          * Set base directory which will be used for relative source paths.
          * By default, it is '$projectDir'.
@@ -116,6 +125,7 @@ abstract class RunKodexTask
             log.lifecycle { "Kodex is running!" }
 
             val sourceRoots = sources.get()
+            val contextualSourceRoots = contextualSources.get()
             val target = target.get()
             val runtime = classpath.get() // .resolve()
             val processors = processors.get()
@@ -127,6 +137,7 @@ abstract class RunKodexTask
 
             log.info { "Using target folder: $target" }
             log.info { "Using source folders: $sourceRoots" }
+            log.info { "Using contextual source folders: $contextualSourceRoots" }
             log.info { "Using target folders: ${targets.files.toList()}" }
             log.info { "Using runtime classpath: ${runtime.joinToString("\n")}" }
 
@@ -134,6 +145,17 @@ abstract class RunKodexTask
             val sourceSetSpec = RunKodexAction.SourceSetSpec(
                 name = sourceSetName,
                 sourceRoots = sourceRoots.filter { it.exists() },
+                contextualSourceSets = contextualSourceRoots.mapIndexed { i, it ->
+                    RunKodexAction.SourceSetSpec(
+                        name = "contextualSourceSet$i",
+                        sourceRoots = it,
+                        contextualSourceSets = emptyList(),
+                        languageVersion = languageVersion.getOrNull(),
+                        apiVersion = apiVersion.getOrNull(),
+                        analysisPlatform = analysisPlatform.getOrNull(),
+                        classpath = projectClassPath.get(),
+                    )
+                },
                 languageVersion = languageVersion.getOrNull(),
                 apiVersion = apiVersion.getOrNull(),
                 analysisPlatform = analysisPlatform.getOrNull(),
