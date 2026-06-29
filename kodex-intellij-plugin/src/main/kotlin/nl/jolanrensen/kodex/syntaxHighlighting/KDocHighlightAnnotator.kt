@@ -37,7 +37,7 @@ class KDocHighlightAnnotator :
                         it
                     }
                 }
-                .needsUpdateOnTyping()
+//                .needsUpdateOnTyping()
                 .range(
                     TextRange(
                         /* startOffset = */ kdoc.startOffset + range.first,
@@ -60,6 +60,6 @@ class KDocHighlightAnnotator :
         }
 
         val editor = element.findExistingEditor() ?: return
-        KDocHighlightListener.getInstance(editor).updateHighlightingAtCarets()
+        KDocHighlightListener.getInstance(editor).scheduleUpdateHighlighting()
     }
 }

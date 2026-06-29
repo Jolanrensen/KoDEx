@@ -13,16 +13,15 @@ import com.intellij.platform.backend.documentation.InlineDocumentationProvider
 import com.intellij.psi.PsiDocCommentBase
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.PsiTreeUtil
-import io.ktor.utils.io.CancellationException
+import kotlinx.coroutines.CancellationException
 import nl.jolanrensen.kodex.kodexInlineRenderingIsEnabled
 import nl.jolanrensen.kodex.services.DocProcessorService
 import nl.jolanrensen.kodex.utils.docComment
+import org.jetbrains.kotlin.idea.highlighting.kdoc.KDocRenderer.renderKDoc
 import org.jetbrains.kotlin.idea.k2.codeinsight.quickDoc.KotlinInlineDocumentationProvider
-import org.jetbrains.kotlin.idea.kdoc.KDocRenderer.renderKDoc
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFile
-import kotlin.collections.plusAssign
 
 /**
  * inline, used for rendering single doc comment in file, does not work for multiple, Issue #54,
@@ -90,10 +89,10 @@ class DocProcessorInlineDocumentationProvider : InlineDocumentationProvider {
             }
 
             return result
-        } catch (_: ProcessCanceledException) {
-            return emptyList()
-        } catch (_: CancellationException) {
-            return emptyList()
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             e.printStackTrace()
             return emptyList()
@@ -122,10 +121,10 @@ class DocProcessorInlineDocumentationProvider : InlineDocumentationProvider {
                 originalOwner = declaration,
                 modifiedDocumentation = modified.docComment as KDoc,
             )
-        } catch (_: ProcessCanceledException) {
-            return null
-        } catch (_: CancellationException) {
-            return null
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             e.printStackTrace()
             return null

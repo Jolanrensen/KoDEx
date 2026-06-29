@@ -21,7 +21,7 @@ import nl.jolanrensen.kodex.utils.annotationNames
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.ValueArgument
-import org.jetbrains.kotlin.resolve.calls.util.getValueArgumentsInParentheses
+//import org.jetbrains.kotlin.resolve.calls.util.getValueArgumentsInParentheses
 import java.io.File
 import javax.swing.Icon
 
@@ -44,7 +44,7 @@ class ExportAsHtmlAnnotator : Annotator {
                         service.getProcessedDocumentableWrapperOrNull(documentableWrapper)
                     } ?: return
 
-                    val arguments = annotation.getValueArgumentsInParentheses()
+                    val arguments = annotation.valueArguments
 
                     val htmlFile = exportToHtmlFile(arguments, processedDocumentableWrapper)
                     val virtualFile = LocalFileSystem.getInstance().findFileByIoFile(htmlFile)
@@ -83,7 +83,7 @@ class ExportAsHtmlAnnotator : Annotator {
 
     private fun annotate(declaration: KtDeclaration, annotation: KtAnnotationEntry, holder: AnnotationHolder) {
         holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-            .needsUpdateOnTyping()
+//            .needsUpdateOnTyping()
             .gutterIconRenderer(GutterIcon(declaration, annotation))
             .range(annotation.textRange)
             .create()

@@ -9,7 +9,7 @@ import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.documentation.PsiDocumentationTargetProvider
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiJavaFile
-import io.ktor.utils.io.CancellationException
+import kotlinx.coroutines.CancellationException
 import nl.jolanrensen.kodex.services.DocProcessorService
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.psi.KtFile
@@ -45,10 +45,10 @@ class DocProcessorPsiDocumentationTargetProvider : PsiDocumentationTargetProvide
                 originalElement = originalElement,
             )
             return kotlinDocTarget
-        } catch (_: ProcessCanceledException) {
-            return null
-        } catch (_: CancellationException) {
-            return null
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             e.printStackTrace()
             return null

@@ -15,7 +15,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.util.PsiTreeUtil
-import io.ktor.utils.io.CancellationException
+import kotlinx.coroutines.CancellationException
 import nl.jolanrensen.kodex.services.DocProcessorService
 import nl.jolanrensen.kodex.utils.docComment
 import org.jetbrains.annotations.Nls
@@ -65,8 +65,10 @@ class DocProcessorDocumentationProvider :
                 }
                 true
             }
-        } catch (_: ProcessCanceledException) {
-        } catch (_: CancellationException) {
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             // e.printStackTrace()
         }
@@ -78,10 +80,10 @@ class DocProcessorDocumentationProvider :
         try {
             val modifiedElement = runBlockingCancellable { service.getModifiedElement(element) }
             return kotlin.generateDoc(modifiedElement ?: element, originalElement)
-        } catch (_: ProcessCanceledException) {
-            return null
-        } catch (_: CancellationException) {
-            return null
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             // e.printStackTrace()
             return null
@@ -99,10 +101,10 @@ class DocProcessorDocumentationProvider :
             val owner = comment.owner ?: return null
             val modifiedElement = runBlockingCancellable { service.getModifiedElement(owner) }
             return kotlin.generateRenderedDoc(modifiedElement?.docComment ?: comment)
-        } catch (_: ProcessCanceledException) {
-            return null
-        } catch (_: CancellationException) {
-            return null
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             // e.printStackTrace()
             return null
