@@ -14,53 +14,32 @@ import nl.jolanrensen.kodex.utils.lastIndexOfNot
 import nl.jolanrensen.kodex.utils.programmingLanguage
 import nl.jolanrensen.kodex.utils.toIntRange
 import nl.jolanrensen.kodex.utils.toSimpleImportPath
-import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.descriptors.CallableDescriptor
 import org.jetbrains.kotlin.idea.base.psi.kotlinFqName
-import org.jetbrains.kotlin.idea.base.utils.fqname.fqName
-import org.jetbrains.kotlin.idea.search.usagesSearch.descriptor
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
 import java.io.File
 
-fun DocumentableWrapper.Companion.createFromIntellijOrNull(
-    documentable: PsiElement,
-    useK2: Boolean,
-): DocumentableWrapper? {
+fun createFromIntellijOrNull(documentable: PsiElement): DocumentableWrapper? {
     require(documentable is KtDeclaration || documentable is PsiDocCommentOwner) {
         "Documentable must be a KtDeclaration or PsiDocCommentOwner, but was ${documentable::class.simpleName}"
     }
 
     val path = documentable.kotlinFqName?.asString() ?: return null
     val extensionPath: String? = if (documentable.isExtensionDeclaration()) {
-        if (useK2) {
-            // k2 method
-            (documentable as? KtElement)?.let {
-                analyze(it) {
-                    (documentable as? org.jetbrains.kotlin.psi.KtCallableDeclaration)
-                        ?.receiverTypeReference
-                        ?.type
-                        ?.fullyExpandedType
-                        ?.expandedSymbol
-                        ?.psi
-                        ?.kotlinFqName
-                        ?.toString()
-                        ?.let { "$it.${documentable.name}" }
-                }
+        (documentable as? KtElement)?.let {
+            analyze(it) {
+                (documentable as? org.jetbrains.kotlin.psi.KtCallableDeclaration)
+                    ?.receiverTypeReference
+                    ?.type
+                    ?.fullyExpandedType
+                    ?.expandedSymbol
+                    ?.psi
+                    ?.kotlinFqName
+                    ?.toString()
+                    ?.let { "$it.${documentable.name}" }
             }
-        } else {
-            // k1 method
-            @OptIn(K1Deprecation::class)
-            (documentable as? KtDeclaration)
-                ?.descriptor
-                ?.let { it as CallableDescriptor }
-                ?.extensionReceiverParameter
-                ?.type
-                ?.fqName
-                ?.asString()
-                ?.let { "$it.${documentable.name}" }
         }
     } else {
         null
@@ -122,7 +101,7 @@ fun DocumentableWrapper.Companion.createFromIntellijOrNull(
         (
             docFileTextRange.startOffset -
                 fileText.lastIndexOfNot('\n', docFileTextRange.startOffset)
-        ).coerceAtLeast(0)
+            ).coerceAtLeast(0)
     } catch (_: Throwable) {
         0
     }

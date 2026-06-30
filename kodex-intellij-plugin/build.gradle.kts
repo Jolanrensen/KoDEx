@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     id("java")
     kotlin("jvm")
-    id("org.jetbrains.intellij.platform") version "2.13.0"
+    id("org.jetbrains.intellij.platform") version "2.16.0"
     id("org.jlleitschuh.gradle.ktlint")
 }
 
@@ -64,7 +64,7 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-core:5.5.5")
 
     intellijPlatform {
-        intellijIdeaUltimate("261.23567.28")
+        intellijIdeaUltimate("262.8377.35")
         bundledPlugins(
             "org.jetbrains.kotlin",
             "com.intellij.java",
@@ -99,14 +99,14 @@ tasks.getByName<Test>("test") {
 
 tasks.withType<KotlinCompile> {
     compilerOptions {
-        jvmTarget = JvmTarget.JVM_21
+        jvmTarget = JvmTarget.JVM_25
     }
 }
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-        sourceCompatibility = JavaVersion.VERSION_21
+        languageVersion = JavaLanguageVersion.of(25)
+        sourceCompatibility = JavaVersion.VERSION_25
     }
 }
 

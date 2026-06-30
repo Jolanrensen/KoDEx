@@ -38,17 +38,22 @@
             order="first"
             implementation="nl.jolanrensen.kodex.documentationProvider.DocProcessorPsiDocumentationTargetProvider"/>
 
+        <!-- For findInlineDocumentation, aka "Render single doc comment", Issue #54 -->
         <platform.backend.documentation.inlineDocumentationProvider
-            id="DocProcessorInlineDocumentationProvider"
+            id="DocProcessorInlineDocumentationProviderFirst"
             order="first"
             implementation="nl.jolanrensen.kodex.documentationProvider.DocProcessorInlineDocumentationProvider"/>
 
-        <!-- Issue #54 -->
-        <lang.documentationProvider
-            language="kotlin"
-            implementationClass="nl.jolanrensen.kodex.documentationProvider.DocProcessorDocumentationProvider"
-            id="DocProcessorK2"
-            order="first"/>
+        <!-- For inlineDocumentationItems, aka "Render all doc comments", Issue #54 -->
+        <platform.backend.documentation.inlineDocumentationProvider
+            id="DocProcessorInlineDocumentationProviderLast"
+            order="last"
+            implementation="nl.jolanrensen.kodex.documentationProvider.DocProcessorInlineDocumentationProvider"/>
+
+        <platform.backend.documentation.targetProvider
+            id="DocProcessorDocumentationTargetProvider"
+            order="first"
+            implementation="nl.jolanrensen.kodex.documentationProvider.DocProcessorDocumentationTargetProvider"/>
 
         <!-- Highlighting -->
         <annotator language="kotlin"

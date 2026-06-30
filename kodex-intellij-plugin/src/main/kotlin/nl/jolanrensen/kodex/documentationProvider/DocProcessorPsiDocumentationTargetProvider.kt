@@ -9,7 +9,7 @@ import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.documentation.PsiDocumentationTargetProvider
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiJavaFile
-import io.ktor.utils.io.CancellationException
+import java.util.concurrent.CancellationException
 import nl.jolanrensen.kodex.services.DocProcessorService
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.psi.KtFile
@@ -18,7 +18,7 @@ import org.jetbrains.kotlin.psi.KtFile
 class DocProcessorPsiDocumentationTargetProvider : PsiDocumentationTargetProvider {
 
     init {
-        println("DocProcessorPsiDocumentationTargetProvider (K2) created")
+        println("DocProcessorPsiDocumentationTargetProvider created")
     }
 
     private val serviceInstances: MutableMap<Project, DocProcessorService> = mutableMapOf()
@@ -43,12 +43,24 @@ class DocProcessorPsiDocumentationTargetProvider : PsiDocumentationTargetProvide
             val kotlinDocTarget = createKotlinDocumentationTarget(
                 element = modifiedElement,
                 originalElement = originalElement,
-            )
+            ).takeUnless {
+                val navigationElement = element.navigationElement
+
+                // there are cases when documentation viewed from Java files
+                // should NOT be based on Kotlin representation, but on original Java
+                if (originalElement?.containingFile !is PsiJavaFile) {
+                    return@takeUnless false
+                }
+
+                // top level functions and properties are accessible via file-wrapper class
+                // `foo.kt` is represented in Java as `FooKt`.
+                navigationElement is KtFile
+            }
             return kotlinDocTarget
-        } catch (_: ProcessCanceledException) {
-            return null
-        } catch (_: CancellationException) {
-            return null
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             e.printStackTrace()
             return null

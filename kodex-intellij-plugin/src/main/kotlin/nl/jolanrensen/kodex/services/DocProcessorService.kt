@@ -137,7 +137,7 @@ class DocProcessorService(private val project: Project) {
         val targets = kaSymbols.map {
             when (it) {
                 is KtDeclaration, is PsiDocCommentOwner ->
-                    DocumentableWrapper.createFromIntellijOrNull(it, useK2 = true)
+                    createFromIntellijOrNull(it)
 
                 else -> null
             }
@@ -238,7 +238,7 @@ class DocProcessorService(private val project: Project) {
     private val documentableCacheHolder = CacheHolder()
 
     fun getDocumentableWrapperOrNull(psiElement: PsiElement): DocumentableWrapper? {
-        val documentableWrapper = DocumentableWrapper.createFromIntellijOrNull(psiElement, useK2 = true)
+        val documentableWrapper = createFromIntellijOrNull(psiElement)
         if (documentableWrapper == null) {
             thisLogger().warn("Could not create DocumentableWrapper from element: $psiElement")
         }
@@ -301,10 +301,10 @@ class DocProcessorService(private val project: Project) {
                 ?: return null
 
             processed.docContent
-        } catch (_: ProcessCanceledException) {
-            return null
-        } catch (_: CancellationException) {
-            return null
+        } catch (e: ProcessCanceledException) {
+           throw e
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: TagDocProcessorFailedException) {
 //            println(e.message)
 //            println(e.cause)
