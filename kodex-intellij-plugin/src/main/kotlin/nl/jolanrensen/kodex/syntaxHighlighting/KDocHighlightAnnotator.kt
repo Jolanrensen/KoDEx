@@ -10,7 +10,6 @@ import com.intellij.psi.util.startOffset
 import nl.jolanrensen.kodex.getLoadedProcessors
 import nl.jolanrensen.kodex.intellij.HighlightInfo
 import nl.jolanrensen.kodex.intellij.HighlightType
-import nl.jolanrensen.kodex.intellij.contains
 import nl.jolanrensen.kodex.kodexHighlightingIsEnabled
 import org.jetbrains.kotlin.idea.codeinsight.utils.findExistingEditor
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
@@ -37,7 +36,6 @@ class KDocHighlightAnnotator :
                         it
                     }
                 }
-//                .needsUpdateOnTyping()
                 .range(
                     TextRange(
                         /* startOffset = */ kdoc.startOffset + range.first,
