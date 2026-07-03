@@ -44,98 +44,142 @@ class KDocHighlightListener private constructor(private val editor: Editor) :
     KeyListener,
     Disposable {
 
-    companion object {
-        private val instanceMap = mutableMapOf<Editor, KDocHighlightListener>()
+        companion object {
+            private val instanceMap = mutableMapOf<Editor, KDocHighlightListener>()
 
-        fun getInstance(editor: Editor): KDocHighlightListener =
-            instanceMap.getOrPut(editor) { KDocHighlightListener(editor) }
-    }
-
-    init {
-        editor.caretModel.addCaretListener(this, this)
-        editor.contentComponent.addKeyListener(this, this)
-    }
-
-
-    val scope = CoroutineScope(Dispatchers.Default) + SupervisorJob()
-
-    private val loadedProcessors = getLoadedProcessors()
-    private val highlighters = mutableListOf<RangeHighlighter>()
-
-    /** The currently running highlighting job, if any. Only one runs at a time; see [scheduleUpdateHighlighting]. */
-    @Volatile
-    private var updateJob: Job? = null
-
-    /**
-     * Cancels any in-flight [updateHighlightingAtCarets] and launches a fresh one,
-     * guaranteeing only the newest update runs inside [scope].
-     */
-    @Synchronized
-    internal fun scheduleUpdateHighlighting() {
-        val previous = updateJob
-        updateJob = scope.launch {
-            // wait for the previous (now superseded) update to fully stop before starting,
-            // so they never touch `highlighters` concurrently
-            previous?.cancelAndJoin()
-            updateHighlightingAtCarets()
+            fun getInstance(editor: Editor): KDocHighlightListener =
+                instanceMap.getOrPut(editor) { KDocHighlightListener(editor) }
         }
-    }
 
-    override fun caretPositionChanged(event: CaretEvent) = scheduleUpdateHighlighting()
-
-    override fun keyTyped(e: KeyEvent?) = scheduleUpdateHighlighting()
-
-    override fun keyPressed(e: KeyEvent?) = Unit
-
-    override fun keyReleased(e: KeyEvent?) = scheduleUpdateHighlighting()
-
-    /**
-     * Updates the highlighting of related symbols such as brackets.
-     */
-    @Suppress("ktlint:standard:comment-wrapping")
-    private suspend fun updateHighlightingAtCarets() {
-        clearHighlighters()
-        if (editor.isDisposed) return dispose()
-        if (!kodexHighlightingIsEnabled) return
-
-        val scheme = EditorColorsManager.getInstance().globalScheme
-        val markupModel = editor.markupModel as MarkupModelEx
-        val psiFile = PsiDocumentManager.getInstance(editor.project ?: return)
-            .getPsiFile(editor.document) ?: return
-
-        for (it in editor.caretModel.allCarets) {
-            updateHighlightingAtCaret(it, psiFile, scheme, markupModel)
+        init {
+            editor.caretModel.addCaretListener(this, this)
+            editor.contentComponent.addKeyListener(this, this)
         }
-    }
 
-    private suspend fun updateHighlightingAtCaret(
-        caret: Caret,
-        psiFile: PsiFile,
-        scheme: EditorColorsScheme,
-        markupModel: MarkupModelEx,
-    ) {
-        val caretOffset = caret.offset
-        val kdoc = readAction {
-            psiFile.findElementAt(caretOffset)?.findParentOfType<KDoc>(strict = false)
+        val scope = CoroutineScope(Dispatchers.Default) + SupervisorJob()
+
+        private val loadedProcessors = getLoadedProcessors()
+        private val highlighters = mutableListOf<RangeHighlighter>()
+
+        /** The currently running highlighting job, if any. Only one runs at a time; see [scheduleUpdateHighlighting]. */
+        @Volatile
+        private var updateJob: Job? = null
+
+        /**
+         * Cancels any in-flight [updateHighlightingAtCarets] and launches a fresh one,
+         * guaranteeing only the newest update runs inside [scope].
+         */
+        @Synchronized
+        internal fun scheduleUpdateHighlighting() {
+            val previous = updateJob
+            updateJob = scope.launch {
+                // wait for the previous (now superseded) update to fully stop before starting,
+                // so they never touch `highlighters` concurrently
+                previous?.cancelAndJoin()
+                updateHighlightingAtCarets()
+            }
         }
-            ?: return
-        val highlightInfos = getHighlightInfosFor(kdoc, loadedProcessors)
-        val kdocStart = kdoc.startOffset
 
-        // background
-        val backgroundToHighlight = highlightInfos
-            // take the first background to highlight, as it's generally the deepest
-            .firstOrNull {
-                it.ranges.any {
-                    caretOffset in (kdocStart + it.extendLastByOne())
-                } && it.type == HighlightType.BACKGROUND
+        override fun caretPositionChanged(event: CaretEvent) = scheduleUpdateHighlighting()
+
+        override fun keyTyped(e: KeyEvent?) = scheduleUpdateHighlighting()
+
+        override fun keyPressed(e: KeyEvent?) = Unit
+
+        override fun keyReleased(e: KeyEvent?) = scheduleUpdateHighlighting()
+
+        /**
+         * Updates the highlighting of related symbols such as brackets.
+         */
+        @Suppress("ktlint:standard:comment-wrapping")
+        private suspend fun updateHighlightingAtCarets() {
+            clearHighlighters()
+            if (editor.isDisposed) return dispose()
+            if (!kodexHighlightingIsEnabled) return
+
+            val scheme = EditorColorsManager.getInstance().globalScheme
+            val markupModel = editor.markupModel as MarkupModelEx
+            val psiFile = PsiDocumentManager.getInstance(editor.project ?: return)
+                .getPsiFile(editor.document) ?: return
+
+            for (it in editor.caretModel.allCarets) {
+                updateHighlightingAtCaret(it, psiFile, scheme, markupModel)
+            }
+        }
+
+        private suspend fun updateHighlightingAtCaret(
+            caret: Caret,
+            psiFile: PsiFile,
+            scheme: EditorColorsScheme,
+            markupModel: MarkupModelEx,
+        ) {
+            val caretOffset = caret.offset
+            val kdoc = readAction {
+                psiFile.findElementAt(caretOffset)?.findParentOfType<KDoc>(strict = false)
+            }
+                ?: return
+            val highlightInfos = getHighlightInfosFor(kdoc, loadedProcessors)
+            val kdocStart = kdoc.startOffset
+
+            // background
+            val backgroundToHighlight = highlightInfos
+                // take the first background to highlight, as it's generally the deepest
+                .firstOrNull {
+                    it.ranges.any {
+                        caretOffset in (kdocStart + it.extendLastByOne())
+                    } &&
+                        it.type == HighlightType.BACKGROUND
+                }
+
+            backgroundToHighlight
+                ?.let {
+                    // the background may have related backgrounds to also highlight
+                    it.related.filter { it.type == HighlightType.BACKGROUND } + it
+                }?.forEach {
+                    for (range in it.ranges) {
+                        highlighters += markupModel.addRangeHighlighter(
+                            // startOffset =
+                            kdocStart + range.first,
+                            // endOffset =
+                            kdocStart + range.last + 1,
+                            // layer =
+                            HighlighterLayer.ELEMENT_UNDER_CARET - 1,
+                            // textAttributes =
+                            textAttributesFor(HighlightType.BACKGROUND),
+                            // targetArea =
+                            HighlighterTargetArea.EXACT_RANGE,
+                        )
+                    }
+                }
+
+            // related symbols such as brackets
+            val relatedHighlightAttributes by lazy {
+                scheme.getAttributes(CodeInsightColors.MATCHED_BRACE_ATTRIBUTES)
+                    .clone()
+                    .apply {
+                        fontType = Font.BOLD + Font.ITALIC
+                    }
             }
 
-        backgroundToHighlight
-            ?.let {
-                // the background may have related backgrounds to also highlight
-                it.related.filter { it.type == HighlightType.BACKGROUND } + it
-            }?.forEach {
+            val relatedToHighlight = highlightInfos
+                // only add bracket matching for the background that is highlighted currently
+                .filter { it.type != HighlightType.BACKGROUND }
+                .let { if (backgroundToHighlight != null) it.plus(backgroundToHighlight) else it }
+                .firstNotNullOfOrNull {
+                    // we're trying to highlight brackets, not backgrounds
+                    val related = it.related.filter { it.type != HighlightType.BACKGROUND }
+                    if (related.isNotEmpty() && it.ranges.any { caretOffset in (kdocStart + it.extendLastByOne()) }) {
+                        if (it.type == HighlightType.BACKGROUND) {
+                            related
+                        } else {
+                            related + it
+                        }
+                    } else {
+                        null
+                    }
+                } ?: return
+
+            for (it in relatedToHighlight) {
                 for (range in it.ranges) {
                     highlighters += markupModel.addRangeHighlighter(
                         // startOffset =
@@ -143,66 +187,23 @@ class KDocHighlightListener private constructor(private val editor: Editor) :
                         // endOffset =
                         kdocStart + range.last + 1,
                         // layer =
-                        HighlighterLayer.ELEMENT_UNDER_CARET - 1,
+                        HighlighterLayer.SELECTION + 100,
                         // textAttributes =
-                        textAttributesFor(HighlightType.BACKGROUND),
+                        relatedHighlightAttributes,
                         // targetArea =
                         HighlighterTargetArea.EXACT_RANGE,
                     )
                 }
             }
-
-        // related symbols such as brackets
-        val relatedHighlightAttributes by lazy {
-            scheme.getAttributes(CodeInsightColors.MATCHED_BRACE_ATTRIBUTES)
-                .clone()
-                .apply {
-                    fontType = Font.BOLD + Font.ITALIC
-                }
         }
 
-        val relatedToHighlight = highlightInfos
-            // only add bracket matching for the background that is highlighted currently
-            .filter { it.type != HighlightType.BACKGROUND }
-            .let { if (backgroundToHighlight != null) it.plus(backgroundToHighlight) else it }
-            .firstNotNullOfOrNull {
-                // we're trying to highlight brackets, not backgrounds
-                val related = it.related.filter { it.type != HighlightType.BACKGROUND }
-                if (related.isNotEmpty() && it.ranges.any { caretOffset in (kdocStart + it.extendLastByOne()) }) {
-                    if (it.type == HighlightType.BACKGROUND) {
-                        related
-                    } else {
-                        related + it
-                    }
-                } else {
-                    null
-                }
-            } ?: return
+        private fun clearHighlighters() {
+            highlighters.forEach { it.dispose() }
+            highlighters.clear()
+        }
 
-        for (it in relatedToHighlight) {
-            for (range in it.ranges)
-                highlighters += markupModel.addRangeHighlighter(
-                    // startOffset =
-                    kdocStart + range.first,
-                    // endOffset =
-                    kdocStart + range.last + 1,
-                    // layer =
-                    HighlighterLayer.SELECTION + 100,
-                    // textAttributes =
-                    relatedHighlightAttributes,
-                    // targetArea =
-                    HighlighterTargetArea.EXACT_RANGE,
-                )
+        override fun dispose() {
+            clearHighlighters()
+            instanceMap.remove(editor)
         }
     }
-
-    private fun clearHighlighters() {
-        highlighters.forEach { it.dispose() }
-        highlighters.clear()
-    }
-
-    override fun dispose() {
-        clearHighlighters()
-        instanceMap.remove(editor)
-    }
-}

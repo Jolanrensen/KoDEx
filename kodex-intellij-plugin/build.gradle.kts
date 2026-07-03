@@ -37,7 +37,7 @@ intellijPlatform {
     pluginConfiguration {
         name = "/** KoDEx */: Kotlin Documentation Extensions"
         ideaVersion {
-            sinceBuild = "261"
+            sinceBuild = "262"
             untilBuild = "263.*"
         }
     }
