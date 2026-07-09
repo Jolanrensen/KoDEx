@@ -45,10 +45,7 @@ intellijPlatform {
         cliPath.set(file("verifier-all.jar"))
 
         ides {
-            create(IntelliJPlatformType.IntellijIdeaCommunity, "2025.3") {
-                useInstaller = false
-            }
-            create(IntelliJPlatformType.IntellijIdeaUltimate, "2025.3") {
+            create(IntelliJPlatformType.IntellijIdeaUltimate, "2026.1") {
                 useInstaller = false
             }
             recommended()
@@ -98,6 +95,7 @@ tasks.getByName<Test>("test") {
 }
 
 tasks.withType<KotlinCompile> {
+    dependsOn(":kodex-common:shadowJar")
     compilerOptions {
         jvmTarget = JvmTarget.JVM_25
     }

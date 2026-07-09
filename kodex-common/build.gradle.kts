@@ -53,29 +53,9 @@ tasks.shadowJar {
 
     // Avoid clashes with org.jetbrains:markdown-jvm:0.6.1 in :common
     relocate("org.intellij.markdown", "nl.jolanrensen.kodex.markdown")
-}
 
-// Make the shadow jar the module's single published artifact.
-//
-// The shadow jar uses `archiveClassifier = ""`, so it writes to the same path as
-// the plain `jar` task (kodex-common-<version>.jar). Having two tasks produce the
-// same file caused a read/write race: while `:kodex-intellij-plugin:compileKotlin`
-// ran its classpath-snapshot transform on the jar, `shadowJar` was rewriting it,
-// yielding "zip END header not found". Disabling the plain jar and exposing the
-// shadow jar as the outgoing artifact leaves a single producer, so consumers depend
-// on `shadowJar` directly (correct ordering) and get the relocated markdown classes.
-tasks.jar {
-    enabled = false
-}
-configurations {
-    apiElements.configure {
-        outgoing.artifacts.clear()
-        outgoing.artifact(tasks.shadowJar)
-    }
-    runtimeElements.configure {
-        outgoing.artifacts.clear()
-        outgoing.artifact(tasks.shadowJar)
-    }
+    // so we overwrite the output jar
+    mustRunAfter(tasks.jar)
 }
 
 tasks.getByName<Test>("test") {
