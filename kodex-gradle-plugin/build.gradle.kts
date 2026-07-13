@@ -14,7 +14,7 @@ plugins {
 }
 
 group = "nl.jolanrensen.kodex"
-version = "0.5.5-SNAPSHOT"
+version = "0.5.5"
 
 val kotlinVersion = "2.2.21"
 val dokkaVersion = "2.2.0"
