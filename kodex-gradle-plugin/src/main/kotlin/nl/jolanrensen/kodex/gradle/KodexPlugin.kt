@@ -13,7 +13,9 @@ import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.jvm.tasks.Jar
 import org.gradle.kotlin.dsl.get
+import org.gradle.kotlin.dsl.hasPlugin
 import org.gradle.kotlin.dsl.register
+import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinSingleTargetExtension
@@ -53,6 +55,20 @@ class KodexPlugin : Plugin<Project> {
 
             val kotlinSourceSets = kotlinExtension.sourceSets
 
+            val preprocessAll = project.tasks.register("preprocessAllWithKodex") {
+                group = "KoDEx"
+                description = "Runs KoDEx on all subprojects"
+            }
+            project.subprojects { subProject ->
+                plugins.withType<KodexPlugin> {
+                    subProject.tasks.withType<RunKodexTask>().configureEach { task ->
+                        preprocessAll.configure {
+                            it.dependsOn(task)
+                        }
+                    }
+                }
+            }
+
             afterEvaluate {
                 extension.taskCreators.forEach {
                     configureRunKodexTasks(it, kotlinSourceSets, kotlinExtension)
@@ -77,7 +93,7 @@ class KodexPlugin : Plugin<Project> {
             group = "KoDEx"
             description = "Runs KoDEx $sourceSetName on the ${inputSourceSet.name} sources"
             contextualSources.set(
-                contextualSourceSets.map { it.kotlin.sourceDirectories.toList() }
+                contextualSourceSets.map { it.kotlin.sourceDirectories.toList() },
             )
             applyPropertiesFrom(taskCreator)
             taskCreator.runOnTask.get().forEach {
