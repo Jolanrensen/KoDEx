@@ -129,7 +129,7 @@ abstract class RunKodexAction {
         }
 
         // Run all processors
-        val modifiedDocumentables =
+        val allModifiedDocumentables =
             processors
                 .fold(sourceDocs(processors)) { acc, processor ->
                     log.lifecycle { "Running processor: ${processor::class.qualifiedName}..." }
@@ -138,7 +138,19 @@ abstract class RunKodexAction {
                     }
                     log.lifecycle { "  - Finished in ${time.toString(DurationUnit.SECONDS)}." }
                     docs
-                }.documentablesToProcess
+                }
+
+        // Filter for only the modifiedDocumentables within the source paths
+        val sourcePaths = parameters.sourceRoots.map { it.toPath().normalize() }.toSet()
+        val modifiedDocumentables = allModifiedDocumentables.documentablesToProcess
+            .mapValues { (_, docs) ->
+                docs.filter {
+                    val path = it.file.toPath().normalize()
+                    sourcePaths.any { path.startsWith(it) }
+                }
+            }
+            .filterValues { it.isNotEmpty() }
+        // todo cache modified documentables to be reused by other tasks, from other modules (in Configuration?)
 
         // filter to only include the modified documentables
         val modifiedDocumentablesPerFile = getModifiedDocumentablesPerFile(modifiedDocumentables)
@@ -368,11 +380,7 @@ abstract class RunKodexAction {
         val htmlDir = parameters.exportAsHtmlDir?.also { it.mkdirs() }
             ?: throw IOException("No exportAsHtmlDir specified")
 
-        val sourcePaths = parameters.sourceRoots.map { it.toPath().normalize() }.toSet()
         for (doc in documentables) {
-            val path = doc.file.toPath().normalize()
-            if (sourcePaths.none { path.startsWith(it) }) continue
-
             val exportHtmlAnnotation = doc.annotations.find {
                 it.simpleName == ExportAsHtml::class.simpleName
             }
