@@ -368,7 +368,11 @@ abstract class RunKodexAction {
         val htmlDir = parameters.exportAsHtmlDir?.also { it.mkdirs() }
             ?: throw IOException("No exportAsHtmlDir specified")
 
+        val sourcePaths = parameters.sourceRoots.map { it.toPath().normalize() }.toSet()
         for (doc in documentables) {
+            val path = doc.file.toPath().normalize()
+            if (sourcePaths.none { path.startsWith(it) }) continue
+
             val exportHtmlAnnotation = doc.annotations.find {
                 it.simpleName == ExportAsHtml::class.simpleName
             }

@@ -112,7 +112,13 @@ abstract class DocProcessorFunctionalTest(name: String) {
         kodex {
             preprocess(kotlin.sourceSets.main) {
                 processors = listOf(${processors.joinToString()})
-                contextualSourceSets(${contextualSourceSets.joinToString()})
+                ${
+            if (contextualSourceSets.isEmpty()) {
+                ""
+            } else {
+                "contextualSourceSets(${contextualSourceSets.joinToString()})"
+            }
+        }
                 dependencies {
                 ${
             if (plugins.isEmpty()) {
