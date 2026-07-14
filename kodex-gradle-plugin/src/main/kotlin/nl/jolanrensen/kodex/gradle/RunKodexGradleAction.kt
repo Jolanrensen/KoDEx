@@ -20,7 +20,6 @@ abstract class RunKodexGradleAction :
         WorkParameters {
         override var baseDir: File
         override var sources: SourceSetSpec
-        override var sourceRoots: List<File>
         override var target: File?
         override var exportAsHtmlDir: File?
         override var processors: List<String>
@@ -28,6 +27,8 @@ abstract class RunKodexGradleAction :
         override var arguments: Map<String, Any?>
         override var outputReadOnly: Boolean
         override var htmlOutputReadOnly: Boolean
+        override var outputCacheFile: File?
+        override var inputCacheFiles: List<File>
     }
 
     override val parameters: RunKodexAction.Parameters

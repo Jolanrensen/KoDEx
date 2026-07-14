@@ -8,6 +8,7 @@ import nl.jolanrensen.kodex.docContent.DocContent
 import nl.jolanrensen.kodex.docContent.toDocText
 import nl.jolanrensen.kodex.documentableWrapper.DocumentableWrapper
 import nl.jolanrensen.kodex.documentableWrapper.getDocContentForHtmlRange
+import nl.jolanrensen.kodex.documentableWrapper.toModificationOrNull
 import nl.jolanrensen.kodex.gradle.RunKodexGradleAction
 import nl.jolanrensen.kodex.gradle.lifecycle
 import nl.jolanrensen.kodex.html.renderToHtml
@@ -34,6 +35,7 @@ import org.jetbrains.dokka.model.WithSources
 import org.jetbrains.dokka.model.withDescendants
 import java.io.File
 import java.io.IOException
+import java.io.ObjectOutputStream
 import java.io.Serializable
 import kotlin.time.DurationUnit
 import kotlin.time.measureTimedValue
@@ -71,7 +73,6 @@ abstract class RunKodexAction {
     interface Parameters {
         val baseDir: File
         val sources: SourceSetSpec
-        val sourceRoots: List<File>
         val target: File?
         val exportAsHtmlDir: File?
         val processors: List<String>
@@ -79,6 +80,8 @@ abstract class RunKodexAction {
         val arguments: Map<String, Any?>
         val outputReadOnly: Boolean
         val htmlOutputReadOnly: Boolean
+        val outputCacheFile: File?
+        val inputCacheFiles: List<File>
     }
 
     abstract val parameters: Parameters
@@ -128,10 +131,15 @@ abstract class RunKodexAction {
             log.info { "Found processors: ${processors.map { it::class.qualifiedName }}" }
         }
 
+        val documentablesByPath = sourceDocs(processors)
+
+        // apply cache for contextual sources only
+        val documentablesByPathWithCache = applyCacheForContextualSources(documentablesByPath)
+
         // Run all processors
         val allModifiedDocumentables =
             processors
-                .fold(sourceDocs(processors)) { acc, processor ->
+                .fold(documentablesByPathWithCache) { acc, processor ->
                     log.lifecycle { "Running processor: ${processor::class.qualifiedName}..." }
                     val (docs, time) = measureTimedValue {
                         processor.processSafely(processLimit = parameters.processLimit, documentablesByPath = acc)
@@ -141,7 +149,7 @@ abstract class RunKodexAction {
                 }
 
         // Filter for only the modifiedDocumentables within the source paths
-        val sourcePaths = parameters.sourceRoots.map { it.toPath().normalize() }.toSet()
+        val sourcePaths = parameters.sources.sourceRoots.map { it.toPath().normalize() }.toSet()
         val modifiedDocumentables = allModifiedDocumentables.documentablesToProcess
             .mapValues { (_, docs) ->
                 docs.filter {
@@ -150,7 +158,8 @@ abstract class RunKodexAction {
                 }
             }
             .filterValues { it.isNotEmpty() }
-        // todo cache modified documentables to be reused by other tasks, from other modules (in Configuration?)
+
+        cacheModifiedDocumentables(modifiedDocumentables)
 
         // filter to only include the modified documentables
         val modifiedDocumentablesPerFile = getModifiedDocumentablesPerFile(modifiedDocumentables)
@@ -170,6 +179,30 @@ abstract class RunKodexAction {
 
         // export htmls
         exportHtmls(modifiedDocumentables.values.flatten())
+    }
+
+    private fun applyCacheForContextualSources(documentablesByPath: DocumentablesByPath): DocumentablesByPath {
+        if (contextualSources.isEmpty() || parameters.inputCacheFiles.isEmpty()) return documentablesByPath
+
+        val cache = parameters.inputCacheFiles.mapNotNull { file ->
+            try {
+                DocumentableWrapperModificationCache.readFrom(file).also {
+                    log.lifecycle {
+                        "Read cache file ${file.absolutePath}. KoDEx will try applying this cache for contextual sources."
+                    }
+                }
+            } catch (e: Exception) {
+                log.warn(e) { "Could not read cache file ${file.absolutePath}: ${e.message}" }
+                null
+            }
+        }.merge()
+        val contextualSourcePaths = contextualSources
+            .flatMap { it.sourceRoots.map { it.toPath().normalize() } }
+            .toSet()
+        return documentablesByPath.applyCacheWhere(cache) {
+            val path = it.file.toPath().normalize()
+            contextualSourcePaths.any { path.startsWith(it) }
+        }
     }
 
     private fun analyseSourcesWithDokka(): (List<DocProcessor>) -> DocumentablesByPath {
@@ -258,6 +291,28 @@ abstract class RunKodexAction {
         return { loadedProcessors -> DocumentablesByPath.of(documentablesPerPath, loadedProcessors) }
     }
 
+    private fun cacheModifiedDocumentables(modifiedSourceDocs: Map<String, List<DocumentableWrapper>>) {
+        val cacheFile = parameters.outputCacheFile ?: return
+
+        val modifiedDocs = buildMap {
+            for (docs in modifiedSourceDocs.values) {
+                for (doc in docs) {
+                    val modifcation = doc.toModificationOrNull()
+                    if (modifcation != null) {
+                        put(doc.identifier, modifcation)
+                    }
+                }
+            }
+        }
+
+        val cache = DocumentableWrapperModificationCache(modifiedDocs)
+        try {
+            cache.writeTo(cacheFile)
+        } catch (e: Exception) {
+            log.warn(e) { "Could not write KoDEx modified-sources cache to $cacheFile" }
+        }
+    }
+
     private fun getModifiedDocumentablesPerFile(
         modifiedSourceDocs: Map<String, List<DocumentableWrapper>>,
     ): Map<File, List<DocumentableWrapper>> =
@@ -303,7 +358,7 @@ abstract class RunKodexAction {
         modifiedDocumentablesPerFile: Map<File, List<DocumentableWrapper>>,
         documentablesToExcludeFromPerFile: Map<File, List<DocumentableWrapper>>,
     ) {
-        for (source in parameters.sourceRoots) {
+        for (source in parameters.sources.sourceRoots) {
             for (file in source.walkTopDown()) {
                 if (!file.isFile) continue
                 if (file.containsExcludeFromSources()) continue

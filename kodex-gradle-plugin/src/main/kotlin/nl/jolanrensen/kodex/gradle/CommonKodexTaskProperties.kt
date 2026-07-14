@@ -11,16 +11,20 @@ import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.FileCollection
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.OutputFile
 import java.io.File
 
 interface CommonKodexTaskProperties {
@@ -177,6 +181,21 @@ interface CommonKodexTaskProperties {
 
     /** Accepts [org.jetbrains.dokka.Platform] values. */
     fun analysisPlatform(platform: String?): Unit = analysisPlatform.set(platform)
+
+    /** Where this task should store its output. */
+    @get:OutputFile
+    val outputCacheFile: RegularFileProperty
+
+    /** Where this task should store its output. */
+    fun outputCacheFile(file: File): Unit = outputCacheFile.set(file)
+
+    @get:InputFiles
+    @get:Optional
+    val inputCacheFiles: ConfigurableFileCollection
+
+    fun inputCacheFiles(files: Iterable<File>) {
+        inputCacheFiles.from(files)
+    }
 }
 
 abstract class ExportAsHtmlDsl {
@@ -228,6 +247,8 @@ fun CommonKodexTaskProperties.applyPropertiesFrom(other: CommonKodexTaskProperti
     processors.set(other.processors)
     arguments.set(other.arguments)
     classpath.set(other.classpath)
+    outputCacheFile.set(other.outputCacheFile)
+    inputCacheFiles.setFrom(other.inputCacheFiles)
 
     val otherExportAsHtml = other.exportAsHtml.get()
     if (otherExportAsHtml.dir.isPresent) {
@@ -259,6 +280,10 @@ fun CommonKodexTaskProperties.applyConventions(project: Project, factory: Object
     )
     arguments.convention(emptyMap())
     classpath.convention(project.maybeCreateRuntimeConfiguration())
+    outputCacheFile.convention(
+        project.layout.buildDirectory.file("kodex${File.separatorChar}$folderName.bin"),
+    )
+    inputCacheFiles.convention(emptyList<Any>())
 
     languageVersion.convention(null as String?)
     apiVersion.convention(null as String?)

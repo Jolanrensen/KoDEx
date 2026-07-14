@@ -169,7 +169,6 @@ abstract class RunKodexTask
             workQueue.submit(RunKodexGradleAction::class.java) {
                 it.baseDir = baseDir.get()
                 it.sources = sourceSetSpec
-                it.sourceRoots = sourceRoots
                 it.target = target
                 it.processors = processors
                 it.processLimit = processLimit.get()
@@ -177,6 +176,8 @@ abstract class RunKodexTask
                 it.exportAsHtmlDir = exportAsHtml.get().dir.get()
                 it.outputReadOnly = outputReadOnly.get()
                 it.htmlOutputReadOnly = exportAsHtml.get().outputReadOnly.get()
+                it.outputCacheFile = outputCacheFile.getOrNull()?.asFile
+                it.inputCacheFiles = inputCacheFiles.files.toList()
             }
         }
     }
