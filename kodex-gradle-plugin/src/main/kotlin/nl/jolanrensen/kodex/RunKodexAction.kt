@@ -15,6 +15,10 @@ import nl.jolanrensen.kodex.html.renderToHtml
 import nl.jolanrensen.kodex.processor.DocProcessor
 import nl.jolanrensen.kodex.processor.findProcessors
 import nl.jolanrensen.kodex.query.DocumentablesByPath
+import nl.jolanrensen.kodex.query.DocumentablesByPathFromMap
+import nl.jolanrensen.kodex.query.DocumentablesByPathMap
+import nl.jolanrensen.kodex.query.readDocumentablesByPathMapFromCache
+import nl.jolanrensen.kodex.query.writeCacheTo
 import nl.jolanrensen.kodex.utils.fullyQualifiedExtensionPath
 import nl.jolanrensen.kodex.utils.fullyQualifiedPath
 import nl.jolanrensen.kodex.utils.indexOfFirstOrNullWhile
@@ -41,6 +45,8 @@ import kotlin.time.DurationUnit
 import kotlin.time.measureTimedValue
 
 private val log = KotlinLogging.logger("KoDEx")
+
+typealias DocumentablesByPathCreator = (List<DocProcessor>) -> DocumentablesByPath
 
 /**
  * Process docs action.
@@ -114,11 +120,13 @@ abstract class RunKodexAction {
         )
 
     protected suspend fun process() {
+        val cachedContextualDocumentables = readCachedContextualDocumentables()
+
         // analyse the sources with dokka to get the documentables
         log.lifecycle { "Analyzing sources..." }
         log.lifecycle { "Running RunKodexAction using Kotlin: ${KotlinVersion.CURRENT}" }
         val (sourceDocs, time) = measureTimedValue {
-            analyseSourcesWithDokka()
+            analyseSourcesWithDokka(cachedContextualDocumentables)
         }
         log.lifecycle { "  - Finished in ${time.toString(DurationUnit.SECONDS)}." }
 
@@ -133,13 +141,16 @@ abstract class RunKodexAction {
 
         val documentablesByPath = sourceDocs(processors)
 
-        // apply cache for contextual sources only
-        val documentablesByPathWithCache = applyCacheForContextualSources(documentablesByPath)
+        // TODO check if DocumentableWrappers can be loaded from cache as well
+
+        // apply cache for contextual sources only TODO
+//        val documentablesByPathWithCache = applyCacheForContextualSources(documentablesByPath)
+//        val documentablesByPathWithCache = documentablesByPath
 
         // Run all processors
         val allModifiedDocumentables =
             processors
-                .fold(documentablesByPathWithCache) { acc, processor ->
+                .fold(documentablesByPath) { acc, processor ->
                     log.lifecycle { "Running processor: ${processor::class.qualifiedName}..." }
                     val (docs, time) = measureTimedValue {
                         processor.processSafely(processLimit = parameters.processLimit, documentablesByPath = acc)
@@ -150,16 +161,16 @@ abstract class RunKodexAction {
 
         // Filter for only the modifiedDocumentables within the source paths
         val sourcePaths = parameters.sources.sourceRoots.map { it.toPath().normalize() }.toSet()
-        val modifiedDocumentables = allModifiedDocumentables.documentablesToProcess
-            .mapValues { (_, docs) ->
-                docs.filter {
-                    val path = it.file.toPath().normalize()
-                    sourcePaths.any { path.startsWith(it) }
-                }
-            }
+        val modifiedDocumentables = allModifiedDocumentables
+            .withDocsToProcessFilter {
+                val path = it.file.toPath().normalize()
+                sourcePaths.any { path.startsWith(it) }
+            }.documentablesToProcess
             .filterValues { it.isNotEmpty() }
 
-        cacheModifiedDocumentables(modifiedDocumentables)
+        cacheModifiedDocumentablesByPath(modifiedDocumentables)
+
+//        cacheModifiedDocumentables(modifiedDocumentables)
 
         // filter to only include the modified documentables
         val modifiedDocumentablesPerFile = getModifiedDocumentablesPerFile(modifiedDocumentables)
@@ -181,31 +192,51 @@ abstract class RunKodexAction {
         exportHtmls(modifiedDocumentables.values.flatten())
     }
 
-    private fun applyCacheForContextualSources(documentablesByPath: DocumentablesByPath): DocumentablesByPath {
-        if (contextualSources.isEmpty() || parameters.inputCacheFiles.isEmpty()) return documentablesByPath
+    private fun readCachedContextualDocumentables(): DocumentablesByPathMap {
+        if (contextualSources.isEmpty() || parameters.inputCacheFiles.isEmpty()) return emptyMap()
 
         val cache = parameters.inputCacheFiles.mapNotNull { file ->
             try {
-                DocumentableWrapperModificationCache.readFrom(file).also {
-                    log.lifecycle {
-                        "Read cache file ${file.absolutePath}. KoDEx will try applying this cache for contextual sources."
-                    }
+                readDocumentablesByPathMapFromCache(file).also {
+                    log.lifecycle { "Read cache file ${file.absolutePath}. KoDEx will try applying this cache for contextual sources." }
                 }
             } catch (e: Exception) {
                 log.warn(e) { "Could not read cache file ${file.absolutePath}: ${e.message}" }
                 null
             }
-        }.merge()
-        val contextualSourcePaths = contextualSources
-            .flatMap { it.sourceRoots.map { it.toPath().normalize() } }
-            .toSet()
-        return documentablesByPath.applyCacheWhere(cache) {
-            val path = it.file.toPath().normalize()
-            contextualSourcePaths.any { path.startsWith(it) }
-        }
+        }.reduce { acc, map -> acc + map }
+
+        return cache
     }
 
-    private fun analyseSourcesWithDokka(): (List<DocProcessor>) -> DocumentablesByPath {
+//    private fun applyCacheForContextualSources(documentablesByPath: DocumentablesByPath): DocumentablesByPath {
+//        if (contextualSources.isEmpty() || parameters.inputCacheFiles.isEmpty()) return documentablesByPath
+//
+//        val cache = parameters.inputCacheFiles.mapNotNull { file ->
+//            try {
+//                DocumentableWrapperModificationCache.readFrom(file).also {
+//                    log.lifecycle {
+//                        "Read cache file ${file.absolutePath}. KoDEx will try applying this cache for contextual sources."
+//                    }
+//                }
+//            } catch (e: Exception) {
+//                log.warn(e) { "Could not read cache file ${file.absolutePath}: ${e.message}" }
+//                null
+//            }
+//        }.merge()
+//        val contextualSourcePaths = contextualSources
+//            .flatMap { it.sourceRoots.map { it.toPath().normalize() } }
+//            .toSet()
+//        return documentablesByPath.applyCacheWhere(cache) {
+//            val path = it.file.toPath().normalize()
+//            contextualSourcePaths.any { path.startsWith(it) }
+//        }
+//    }
+
+    private fun analyseSourcesWithDokka(contextualDocumentables: DocumentablesByPathMap): (List<DocProcessor>) -> DocumentablesByPath {
+        // TODO
+        contextualDocumentables
+
         val allSources = listOf(sources, *contextualSources.toTypedArray())
         // initialize dokka with the sources
         val configuration = DokkaConfigurationImpl(sourceSets = allSources)
@@ -291,23 +322,32 @@ abstract class RunKodexAction {
         return { loadedProcessors -> DocumentablesByPath.of(documentablesPerPath, loadedProcessors) }
     }
 
-    private fun cacheModifiedDocumentables(modifiedSourceDocs: Map<String, List<DocumentableWrapper>>) {
+//    private fun cacheModifiedDocumentables(modifiedSourceDocs: Map<String, List<DocumentableWrapper>>) {
+//        val cacheFile = parameters.outputCacheFile ?: return
+//
+//        val modifiedDocs = buildMap {
+//            for (docs in modifiedSourceDocs.values) {
+//                for (doc in docs) {
+//                    val modifcation = doc.toModificationOrNull()
+//                    if (modifcation != null) {
+//                        put(doc.identifier, modifcation)
+//                    }
+//                }
+//            }
+//        }
+//
+//        val cache = DocumentableWrapperModificationCache(modifiedDocs)
+//        try {
+//            cache.writeTo(cacheFile)
+//        } catch (e: Exception) {
+//            log.warn(e) { "Could not write KoDEx modified-sources cache to $cacheFile" }
+//        }
+//    }
+
+    private fun cacheModifiedDocumentablesByPath(documentablesByPathMap: DocumentablesByPathMap) {
         val cacheFile = parameters.outputCacheFile ?: return
-
-        val modifiedDocs = buildMap {
-            for (docs in modifiedSourceDocs.values) {
-                for (doc in docs) {
-                    val modifcation = doc.toModificationOrNull()
-                    if (modifcation != null) {
-                        put(doc.identifier, modifcation)
-                    }
-                }
-            }
-        }
-
-        val cache = DocumentableWrapperModificationCache(modifiedDocs)
         try {
-            cache.writeTo(cacheFile)
+            documentablesByPathMap.writeCacheTo(cacheFile)
         } catch (e: Exception) {
             log.warn(e) { "Could not write KoDEx modified-sources cache to $cacheFile" }
         }

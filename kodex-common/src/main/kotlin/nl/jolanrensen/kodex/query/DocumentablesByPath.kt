@@ -5,6 +5,12 @@ import nl.jolanrensen.kodex.documentableWrapper.MutableDocumentableWrapper
 import nl.jolanrensen.kodex.documentableWrapper.getAllFullPathsFromHereForTargetPath
 import nl.jolanrensen.kodex.documentableWrapper.toMutable
 import nl.jolanrensen.kodex.processor.DocProcessor
+import nl.jolanrensen.kodex.utils.SerializableIntRange
+import java.io.BufferedOutputStream
+import java.io.File
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
+import java.io.OutputStream
 import java.util.UUID
 
 typealias DocumentableWrapperFilter = (DocumentableWrapper) -> Boolean
@@ -14,13 +20,45 @@ internal data object NO_FILTER : DocumentableWrapperFilter {
     override fun invoke(p1: DocumentableWrapper): Boolean = true
 }
 
+/** Map from [DocumentableWrapper.fullyQualifiedPath] to [DocumentableWrapper]. */
+typealias DocumentablesByPathMap = Map<String, List<DocumentableWrapper>>
+
+/**
+ * Object output stream that transparently replaces any [IntRange] with a [SerializableIntRange]
+ * so that graphs containing [IntRange] can be serialized.
+ */
+private class IntRangeReplacingObjectOutputStream(out: OutputStream) : ObjectOutputStream(out) {
+    init {
+        enableReplaceObject(true)
+    }
+
+    override fun replaceObject(obj: Any?): Any? =
+        when (obj) {
+            is IntRange -> SerializableIntRange(obj.first, obj.last)
+            else -> obj
+        }
+}
+
+fun DocumentablesByPathMap.writeCacheTo(file: File) {
+    val map = LinkedHashMap(this)
+    file.parentFile?.mkdirs()
+    IntRangeReplacingObjectOutputStream(BufferedOutputStream(file.outputStream())).use { out ->
+        out.writeObject(map)
+    }
+}
+
+@Suppress("UNCHECKED_CAST")
+fun readDocumentablesByPathMapFromCache(file: File): DocumentablesByPathMap =
+    file.inputStream()
+        .use { ObjectInputStream(it).readObject() } as DocumentablesByPathMap
+
 interface DocumentablesByPath {
 
     val queryFilter: DocumentableWrapperFilter
 
     val documentablesToProcessFilter: DocumentableWrapperFilter
 
-    val documentablesToProcess: Map<String, List<DocumentableWrapper>>
+    val documentablesToProcess: DocumentablesByPathMap
 
     /**
      * Whether [DocumentableWrapper.getAllFullPathsFromHereForTargetPath] needs to be used to do
@@ -62,7 +100,7 @@ interface DocumentablesByPath {
     ): DocumentablesByPath
 
     companion object {
-        fun of(map: Map<String, List<DocumentableWrapper>>, loadedProcessors: List<DocProcessor>): DocumentablesByPath =
+        fun of(map: DocumentablesByPathMap, loadedProcessors: List<DocProcessor>): DocumentablesByPath =
             DocumentablesByPathFromMap(map, loadedProcessors)
 
         fun of(
@@ -107,7 +145,7 @@ fun <T : DocumentablesByPath> T.withoutFilters(): T =
         else -> this.withFilters(NO_FILTER, NO_FILTER) as T
     }
 
-fun Map<String, List<DocumentableWrapper>>.toDocumentablesByPath(
+fun DocumentablesByPathMap.toDocumentablesByPath(
     loadedProcessors: List<DocProcessor>,
 ): DocumentablesByPath = DocumentablesByPath.of(this, loadedProcessors)
 
@@ -122,7 +160,7 @@ fun Iterable<Pair<String, List<DocumentableWrapper>>>.toDocumentablesByPath(
  * The [MutableDocumentableWrapper] is a copy of the original [DocumentableWrapper].
  */
 @Suppress("UNCHECKED_CAST")
-internal fun Map<String, List<DocumentableWrapper>>.toMutable(): Map<String, List<MutableDocumentableWrapper>> =
+internal fun DocumentablesByPathMap.toMutable(): Map<String, List<MutableDocumentableWrapper>> =
     mapValues { (_, documentables) ->
         if (documentables.all { it is MutableDocumentableWrapper }) {
             documentables as List<MutableDocumentableWrapper>

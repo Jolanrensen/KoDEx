@@ -24,7 +24,7 @@ open class MutableDocumentableWrapper(
     identifier: UUID,
     annotations: List<AnnotationWrapper>,
     fileTextRange: IntRange,
-    origin: Any,
+    origin: Any?,
     override var docContent: DocContent,
     override var tags: Set<String>,
     override var isModified: Boolean,

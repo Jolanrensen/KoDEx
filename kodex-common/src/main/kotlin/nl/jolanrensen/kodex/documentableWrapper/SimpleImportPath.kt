@@ -1,5 +1,7 @@
 package nl.jolanrensen.kodex.documentableWrapper
 
+import java.io.Serializable
+
 /**
  * Unsafe and simple mirror of
  * https://github.com/JetBrains/kotlin/blob/master/compiler/frontend.common/src/org/jetbrains/kotlin/resolve/ImportPath.kt
@@ -8,7 +10,7 @@ package nl.jolanrensen.kodex.documentableWrapper
  * @property [isAllUnder] Whether the import is a wildcard *-import.
  * @property [alias] The alias of the import if it has any.
  */
-data class SimpleImportPath(val fqName: String, val isAllUnder: Boolean, val alias: String? = null) {
+data class SimpleImportPath(val fqName: String, val isAllUnder: Boolean, val alias: String? = null) : Serializable {
 
     val pathStr: String
         get() = fqName + if (isAllUnder) ".*" else ""

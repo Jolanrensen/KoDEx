@@ -1,6 +1,8 @@
 package nl.jolanrensen.kodex.documentableWrapper
 
-enum class ProgrammingLanguage {
+import java.io.Serializable
+
+enum class ProgrammingLanguage : Serializable {
     KOTLIN,
     JAVA,
 }

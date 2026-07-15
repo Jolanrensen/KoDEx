@@ -7,7 +7,10 @@ import nl.jolanrensen.kodex.documentableWrapper.DocumentableWrapper.Companion
 import nl.jolanrensen.kodex.query.DocumentablesByPath
 import nl.jolanrensen.kodex.query.withoutFilters
 import nl.jolanrensen.kodex.utils.size
+import java.io.BufferedOutputStream
 import java.io.File
+import java.io.ObjectOutputStream
+import java.io.Serializable
 import java.util.UUID
 
 /**
@@ -76,13 +79,13 @@ open class DocumentableWrapper(
         fullyQualifiedSuperPaths = fullyQualifiedSuperPaths,
         textRangeStart = fileTextRange.first,
     ),
-    val origin: Any,
+    val origin: Any?,
     open val docContent: DocContent,
     open val tags: Set<String>,
     open val isModified: Boolean,
     open val htmlRangeStart: Int?,
     open val htmlRangeEnd: Int?,
-) {
+) : Serializable {
 
     companion object {
 
@@ -123,7 +126,7 @@ open class DocumentableWrapper(
         docIndent: Int,
         annotations: List<AnnotationWrapper>,
         fileTextRange: IntRange,
-        origin: Any,
+        origin: Any?,
         htmlRangeStart: Int? = null,
         htmlRangeEnd: Int? = null,
     ) : this(
