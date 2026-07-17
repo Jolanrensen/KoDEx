@@ -1,5 +1,7 @@
 package nl.jolanrensen.kodex.utils
 
+import java.io.ObjectOutputStream
+import java.io.OutputStream
 import java.io.Serializable
 
 /**
@@ -16,4 +18,20 @@ class SerializableIntRange(val first: Int, val last: Int) : Serializable {
     companion object {
         const val serialVersionUID: Long = 1L
     }
+}
+
+/**
+ * Object output stream that transparently replaces any [IntRange] with a [SerializableIntRange]
+ * so that graphs containing [IntRange] can be serialized.
+ */
+internal class IntRangeReplacingObjectOutputStream(out: OutputStream) : ObjectOutputStream(out) {
+    init {
+        enableReplaceObject(true)
+    }
+
+    override fun replaceObject(obj: Any?): Any? =
+        when (obj) {
+            is IntRange -> SerializableIntRange(obj.first, obj.last)
+            else -> obj
+        }
 }

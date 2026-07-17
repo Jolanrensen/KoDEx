@@ -5,12 +5,6 @@ import nl.jolanrensen.kodex.documentableWrapper.MutableDocumentableWrapper
 import nl.jolanrensen.kodex.documentableWrapper.getAllFullPathsFromHereForTargetPath
 import nl.jolanrensen.kodex.documentableWrapper.toMutable
 import nl.jolanrensen.kodex.processor.DocProcessor
-import nl.jolanrensen.kodex.utils.SerializableIntRange
-import java.io.BufferedOutputStream
-import java.io.File
-import java.io.ObjectInputStream
-import java.io.ObjectOutputStream
-import java.io.OutputStream
 import java.util.UUID
 
 typealias DocumentableWrapperFilter = (DocumentableWrapper) -> Boolean
@@ -19,38 +13,6 @@ typealias DocumentableWrapperFilter = (DocumentableWrapper) -> Boolean
 internal data object NO_FILTER : DocumentableWrapperFilter {
     override fun invoke(p1: DocumentableWrapper): Boolean = true
 }
-
-/** Map from [DocumentableWrapper.fullyQualifiedPath] to [DocumentableWrapper]. */
-typealias DocumentablesByPathMap = Map<String, List<DocumentableWrapper>>
-
-/**
- * Object output stream that transparently replaces any [IntRange] with a [SerializableIntRange]
- * so that graphs containing [IntRange] can be serialized.
- */
-private class IntRangeReplacingObjectOutputStream(out: OutputStream) : ObjectOutputStream(out) {
-    init {
-        enableReplaceObject(true)
-    }
-
-    override fun replaceObject(obj: Any?): Any? =
-        when (obj) {
-            is IntRange -> SerializableIntRange(obj.first, obj.last)
-            else -> obj
-        }
-}
-
-fun DocumentablesByPathMap.writeCacheTo(file: File) {
-    val map = LinkedHashMap(this)
-    file.parentFile?.mkdirs()
-    IntRangeReplacingObjectOutputStream(BufferedOutputStream(file.outputStream())).use { out ->
-        out.writeObject(map)
-    }
-}
-
-@Suppress("UNCHECKED_CAST")
-fun readDocumentablesByPathMapFromCache(file: File): DocumentablesByPathMap =
-    file.inputStream()
-        .use { ObjectInputStream(it).readObject() } as DocumentablesByPathMap
 
 interface DocumentablesByPath {
 

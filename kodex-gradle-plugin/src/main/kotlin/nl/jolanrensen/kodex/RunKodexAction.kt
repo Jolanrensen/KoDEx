@@ -8,14 +8,12 @@ import nl.jolanrensen.kodex.docContent.DocContent
 import nl.jolanrensen.kodex.docContent.toDocText
 import nl.jolanrensen.kodex.documentableWrapper.DocumentableWrapper
 import nl.jolanrensen.kodex.documentableWrapper.getDocContentForHtmlRange
-import nl.jolanrensen.kodex.documentableWrapper.toModificationOrNull
 import nl.jolanrensen.kodex.gradle.RunKodexGradleAction
 import nl.jolanrensen.kodex.gradle.lifecycle
 import nl.jolanrensen.kodex.html.renderToHtml
 import nl.jolanrensen.kodex.processor.DocProcessor
 import nl.jolanrensen.kodex.processor.findProcessors
 import nl.jolanrensen.kodex.query.DocumentablesByPath
-import nl.jolanrensen.kodex.query.DocumentablesByPathFromMap
 import nl.jolanrensen.kodex.query.DocumentablesByPathMap
 import nl.jolanrensen.kodex.query.readDocumentablesByPathMapFromCache
 import nl.jolanrensen.kodex.query.writeCacheTo
@@ -39,14 +37,11 @@ import org.jetbrains.dokka.model.WithSources
 import org.jetbrains.dokka.model.withDescendants
 import java.io.File
 import java.io.IOException
-import java.io.ObjectOutputStream
 import java.io.Serializable
 import kotlin.time.DurationUnit
 import kotlin.time.measureTimedValue
 
 private val log = KotlinLogging.logger("KoDEx")
-
-typealias DocumentablesByPathCreator = (List<DocProcessor>) -> DocumentablesByPath
 
 /**
  * Process docs action.
@@ -92,39 +87,51 @@ abstract class RunKodexAction {
 
     abstract val parameters: Parameters
 
-    val sources: DokkaSourceSetImpl by lazy {
-        parameters.sources.toDokka()
+    lateinit var sources: DokkaSourceSetImpl
+    lateinit var contextualSources: Set<DokkaSourceSetImpl>
+
+    private fun loadDokkaSourceSets() {
+        val contextualSources = mutableSetOf<DokkaSourceSetImpl>()
+
+        fun SourceSetSpec.toDokka(): DokkaSourceSetImpl =
+            DokkaSourceSetImpl(
+                sourceSetID = DokkaSourceSetID(moduleName, name),
+                classpath = classpath,
+                displayName = name,
+                dependentSourceSets = contextualSourceSets.map {
+                    it.toDokka()
+                        .also { contextualSources += it }
+                        .sourceSetID
+                }.toSet(),
+                sourceRoots = sourceRoots.toSet(),
+                skipEmptyPackages = false,
+                skipDeprecated = false,
+                documentedVisibilities = DokkaConfiguration.Visibility.entries.toSet(),
+                includeNonPublic = true,
+                analysisPlatform = analysisPlatform?.let { Platform.fromString(it) } ?: Platform.DEFAULT,
+                languageVersion = languageVersion,
+                apiVersion = apiVersion,
+            )
+
+        sources = parameters.sources.toDokka()
+        this.contextualSources = contextualSources
     }
 
-    // filled by `sources`
-    val contextualSources: MutableSet<DokkaSourceSetImpl> = mutableSetOf()
-
-    private fun SourceSetSpec.toDokka(): DokkaSourceSetImpl =
-        DokkaSourceSetImpl(
-            sourceSetID = DokkaSourceSetID(moduleName, name),
-            classpath = classpath,
-            displayName = name,
-            dependentSourceSets = contextualSourceSets.map {
-                it.toDokka()
-                    .also { contextualSources += it }
-                    .sourceSetID
-            }.toSet(),
-            sourceRoots = sourceRoots.toSet(),
-            skipEmptyPackages = false,
-            skipDeprecated = false,
-            documentedVisibilities = DokkaConfiguration.Visibility.entries.toSet(),
-            includeNonPublic = true,
-            analysisPlatform = analysisPlatform?.let { Platform.fromString(it) } ?: Platform.DEFAULT,
-            languageVersion = languageVersion,
-            apiVersion = apiVersion,
-        )
 
     protected suspend fun process() {
+        log.lifecycle { "Running RunKodexAction using Kotlin: ${KotlinVersion.CURRENT}" }
+
+        // initialize sources and contextualSources
+        loadDokkaSourceSets()
+
+        log.lifecycle { "Checking KoDEx contextual caches..." }
         val cachedContextualDocumentables = readCachedContextualDocumentables()
+        if (cachedContextualDocumentables.isEmpty()) {
+            log.lifecycle { "No cached contextual documentables found" }
+        }
 
         // analyse the sources with dokka to get the documentables
         log.lifecycle { "Analyzing sources..." }
-        log.lifecycle { "Running RunKodexAction using Kotlin: ${KotlinVersion.CURRENT}" }
         val (sourceDocs, time) = measureTimedValue {
             analyseSourcesWithDokka(cachedContextualDocumentables)
         }
@@ -140,12 +147,6 @@ abstract class RunKodexAction {
         }
 
         val documentablesByPath = sourceDocs(processors)
-
-        // TODO check if DocumentableWrappers can be loaded from cache as well
-
-        // apply cache for contextual sources only TODO
-//        val documentablesByPathWithCache = applyCacheForContextualSources(documentablesByPath)
-//        val documentablesByPathWithCache = documentablesByPath
 
         // Run all processors
         val allModifiedDocumentables =
@@ -169,8 +170,6 @@ abstract class RunKodexAction {
             .filterValues { it.isNotEmpty() }
 
         cacheModifiedDocumentablesByPath(modifiedDocumentables)
-
-//        cacheModifiedDocumentables(modifiedDocumentables)
 
         // filter to only include the modified documentables
         val modifiedDocumentablesPerFile = getModifiedDocumentablesPerFile(modifiedDocumentables)
@@ -209,33 +208,32 @@ abstract class RunKodexAction {
         return cache
     }
 
-//    private fun applyCacheForContextualSources(documentablesByPath: DocumentablesByPath): DocumentablesByPath {
-//        if (contextualSources.isEmpty() || parameters.inputCacheFiles.isEmpty()) return documentablesByPath
-//
-//        val cache = parameters.inputCacheFiles.mapNotNull { file ->
-//            try {
-//                DocumentableWrapperModificationCache.readFrom(file).also {
-//                    log.lifecycle {
-//                        "Read cache file ${file.absolutePath}. KoDEx will try applying this cache for contextual sources."
-//                    }
-//                }
-//            } catch (e: Exception) {
-//                log.warn(e) { "Could not read cache file ${file.absolutePath}: ${e.message}" }
-//                null
-//            }
-//        }.merge()
-//        val contextualSourcePaths = contextualSources
-//            .flatMap { it.sourceRoots.map { it.toPath().normalize() } }
-//            .toSet()
-//        return documentablesByPath.applyCacheWhere(cache) {
-//            val path = it.file.toPath().normalize()
-//            contextualSourcePaths.any { path.startsWith(it) }
-//        }
-//    }
+    private fun analyseSourcesWithDokka(cachedContextualDocumentables: DocumentablesByPathMap): (List<DocProcessor>) -> DocumentablesByPath {
+        val contextualSourceSetByPath = contextualSources
+            .asSequence()
+            .flatMap { sourceSet -> sourceSet.sourceRoots.map { it.toPath().normalize() to sourceSet } }
+            .groupBy { it.first }
+            .mapValues { it.value.map { it.second }.toSet() }
 
-    private fun analyseSourcesWithDokka(contextualDocumentables: DocumentablesByPathMap): (List<DocProcessor>) -> DocumentablesByPath {
-        // TODO
-        contextualDocumentables
+        val normalSourcePaths = sources.sourceRoots.map { it.toPath().normalize() }
+
+        val uncachedContextualSources = buildSet {
+            addAll(contextualSources)
+            cachedContextualDocumentables.forEach { (_, wrappers) ->
+                wrappers.forEach {
+                    val path = it.file.toPath().normalize()
+                    for ((contextualRootPath, sourceSets) in contextualSourceSetByPath) {
+                        if (path.startsWith(contextualRootPath)) {
+                            removeAll(sourceSets)
+                            break
+                        }
+                    }
+                    if (normalSourcePaths.any { path.startsWith(it) }) {
+                        error("Sources were found in input cache files. Only contextual sources can be supplied as caches.")
+                    }
+                }
+            }
+        }
 
         val allSources = listOf(sources, *contextualSources.toTypedArray())
         // initialize dokka with the sources
@@ -269,7 +267,7 @@ abstract class RunKodexAction {
                 context = context,
             )
         }
-        val contextualModules = contextualSources.flatMap { src ->
+        val contextualModules = uncachedContextualSources.flatMap { src ->
             translators.map {
                 it.invoke(
                     sourceSet = src,
@@ -304,16 +302,22 @@ abstract class RunKodexAction {
         }
 
         // collect the documentables with sources per path
-        val documentablesPerPath: MutableMap<String, List<DocumentableWrapper>> = documentables
+        val documentablesPerPath: MutableMap<String, MutableList<DocumentableWrapper>> = documentables
             .flatMap { doc -> doc.paths.map { it to doc } }
             .groupBy { it.first }
-            .mapValues { it.value.map { it.second } }
+            .mapValues { it.value.map { it.second }.toMutableList() }
             .toMutableMap()
+
+        // add all contextual cached sources
+        for ((path, documentables) in cachedContextualDocumentables) {
+            documentablesPerPath.getOrPut(path) { mutableListOf() }
+                .addAll(documentables)
+        }
 
         // add the paths for documentables without sources to the map
         for (path in pathsWithoutSources) {
             if (path !in documentablesPerPath) {
-                documentablesPerPath[path] = emptyList()
+                documentablesPerPath[path] = mutableListOf()
             }
         }
 
@@ -322,32 +326,12 @@ abstract class RunKodexAction {
         return { loadedProcessors -> DocumentablesByPath.of(documentablesPerPath, loadedProcessors) }
     }
 
-//    private fun cacheModifiedDocumentables(modifiedSourceDocs: Map<String, List<DocumentableWrapper>>) {
-//        val cacheFile = parameters.outputCacheFile ?: return
-//
-//        val modifiedDocs = buildMap {
-//            for (docs in modifiedSourceDocs.values) {
-//                for (doc in docs) {
-//                    val modifcation = doc.toModificationOrNull()
-//                    if (modifcation != null) {
-//                        put(doc.identifier, modifcation)
-//                    }
-//                }
-//            }
-//        }
-//
-//        val cache = DocumentableWrapperModificationCache(modifiedDocs)
-//        try {
-//            cache.writeTo(cacheFile)
-//        } catch (e: Exception) {
-//            log.warn(e) { "Could not write KoDEx modified-sources cache to $cacheFile" }
-//        }
-//    }
-
     private fun cacheModifiedDocumentablesByPath(documentablesByPathMap: DocumentablesByPathMap) {
         val cacheFile = parameters.outputCacheFile ?: return
         try {
-            documentablesByPathMap.writeCacheTo(cacheFile)
+            documentablesByPathMap.writeCacheTo(cacheFile).also {
+                log.lifecycle { "Wrote KoDEx modified-sources cache to $cacheFile" }
+            }
         } catch (e: Exception) {
             log.warn(e) { "Could not write KoDEx modified-sources cache to $cacheFile" }
         }
