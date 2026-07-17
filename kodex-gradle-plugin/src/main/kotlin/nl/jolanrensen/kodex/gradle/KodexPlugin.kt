@@ -88,6 +88,9 @@ class KodexPlugin : Plugin<Project> {
                         consumer.inputCacheFiles.from(producer.outputCacheFile)
                         consumer.dependsOn(producer)
                     }
+
+                    // contextual source sets coming from other modules
+                    wireCrossModuleContextualCaches(consumer, taskCreator)
                 }
             }
         }
@@ -124,6 +127,9 @@ class KodexPlugin : Plugin<Project> {
             sourceSetName = sourceSetName,
             task = task,
         )
+
+        // expose this task's output cache and sources so other modules can use it as a contextual source set
+        exposeContextualCaches(taskCreator, task)
 
         return task
     }

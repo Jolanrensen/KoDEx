@@ -16,7 +16,7 @@ class PluginExtensionTest : DocProcessorFunctionalTest("extension") {
     )
 
     private val plugins = listOf(
-        "nl.jolanrensen:PluginExtensionTest:$version",
+        "nl.jolanrensen:PluginExtensionTest:$VERSION",
     )
 
     @Language("kts")
@@ -32,7 +32,7 @@ class PluginExtensionTest : DocProcessorFunctionalTest("extension") {
         }
 
         group = "nl.jolanrensen"
-        version = "$version"
+        version = "$VERSION"
         
         repositories {
             mavenLocal()
@@ -41,8 +41,8 @@ class PluginExtensionTest : DocProcessorFunctionalTest("extension") {
         }
         
         dependencies {
-            compileOnly("nl.jolanrensen.kodex:kodex-gradle-plugin:$version")
-//            implementation("nl.jolanrensen.kodex:kodex-common:$version")
+            compileOnly("nl.jolanrensen.kodex:kodex-gradle-plugin:$VERSION")
+//            implementation("nl.jolanrensen.kodex:kodex-common:$VERSION")
         }
     """.trimIndent()
 

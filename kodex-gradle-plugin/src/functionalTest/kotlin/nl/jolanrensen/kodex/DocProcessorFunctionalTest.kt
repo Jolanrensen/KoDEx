@@ -11,9 +11,9 @@ import java.io.File
 import java.io.FileWriter
 import java.io.IOException
 
-abstract class DocProcessorFunctionalTest(name: String) {
+val VERSION = "0.5.6-SNAPSHOT"
 
-    protected val version = "0.5.6-SNAPSHOT"
+abstract class DocProcessorFunctionalTest(name: String) {
 
     init {
         println("NOTE!! make sure you have the plugin installed in your local maven repo")
@@ -95,6 +95,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
         processors: List<String>,
         plugins: List<String>,
         contextualSourceSets: List<String>,
+        preprocessTests: Boolean,
     ): String =
         """
         import nl.jolanrensen.kodex.gradle.*
@@ -102,7 +103,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
         
         plugins {  
             kotlin("jvm") version "2.2.10"
-            id("nl.jolanrensen.kodex") version "$version"
+            id("nl.jolanrensen.kodex") version "$VERSION"
         }
         
         repositories {
@@ -110,6 +111,17 @@ abstract class DocProcessorFunctionalTest(name: String) {
         }
         
         kodex {
+            ${
+            if (preprocessTests) {
+                """
+                |    preprocess(kotlin.sourceSets.test) {
+                |        processors = listOf(${processors.joinToString()})
+                |    }
+                """.trimMargin()
+            } else {
+                ""
+            }
+        }
             preprocess(kotlin.sourceSets.main) {
                 processors = listOf(${processors.joinToString()})
                 ${
@@ -191,11 +203,13 @@ abstract class DocProcessorFunctionalTest(name: String) {
         additionals: List<Additional> = emptyList(),
         contextualSourceSets: List<String> = emptyList(),
         buildScan: Boolean = false,
+        preprocessTests: Boolean = false,
     ): String {
         initializeProjectFiles(
             processors = processors,
             plugins = plugins,
             contextualSourceSets = contextualSourceSets,
+            preprocessTests = preprocessTests,
         )
         writeAdditionalFiles(additionals)
 
@@ -222,6 +236,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
         processors: List<String>,
         plugins: List<String> = emptyList(),
         contextualSourceSets: List<String>,
+        preprocessTests: Boolean,
     ) {
         // Set up the test build
         projectDirectory.deleteRecursively()
@@ -234,7 +249,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
             .write(propertiesFile)
 
         File(projectDirectory, "build.gradle.kts")
-            .write(getBuildFileContent(processors, plugins, contextualSourceSets))
+            .write(getBuildFileContent(processors, plugins, contextualSourceSets, preprocessTests))
     }
 
     /**

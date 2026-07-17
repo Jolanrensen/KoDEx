@@ -60,6 +60,16 @@ class TestContextual : DocProcessorFunctionalTest(name = "contextual") {
             processors = processors,
             contextualSourceSets = listOf("kotlin.sourceSets.test.get()"),
             additionals = listOf(testFile),
+            preprocessTests = false,
+        ) shouldBe expectedOutput
+
+        processContent(
+            content = content,
+            packageName = "com.example.plugin",
+            processors = processors,
+            contextualSourceSets = listOf("kotlin.sourceSets.test.get()"),
+            additionals = listOf(testFile),
+            preprocessTests = true,
         ) shouldBe expectedOutput
     }
 }
