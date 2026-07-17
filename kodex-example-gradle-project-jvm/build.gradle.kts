@@ -4,7 +4,7 @@ plugins {
     kotlin("jvm") // version "2.2.21"
 
     // adding the Gradle plugin
-    id("nl.jolanrensen.kodex") version "0.5.1"
+    id("nl.jolanrensen.kodex") version "0.5.6-SNAPSHOT"
 }
 
 group = "nl.jolanrensen.example"
@@ -36,6 +36,8 @@ kodex {
         // optional setup
         arguments(ARG_DOC_PROCESSOR_LOG_NOT_FOUND to false)
 
+        contextualSourceSets = listOf(kotlin.sourceSets.test.get())
+
         // Can be enabled if `PluginExtensionTest` has been run to test if extensions work
 //        processors = listOf(
 //            COMMENT_DOC_PROCESSOR,
@@ -52,6 +54,7 @@ kodex {
 //            plugin("nl.jolanrensen:PluginExtensionTest:0.5.1-SNAPSHOT")
 //        }
     }
+    preprocess(kotlin.sourceSets.test)
 }
 
 // old KoDEx notation

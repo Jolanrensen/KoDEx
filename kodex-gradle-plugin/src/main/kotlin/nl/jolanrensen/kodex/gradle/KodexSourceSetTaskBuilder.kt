@@ -5,6 +5,7 @@ import org.gradle.api.Project
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
@@ -51,6 +52,16 @@ constructor(
     fun contextualSourceSets(first: KotlinSourceSet, vararg others: KotlinSourceSet): Unit {
         contextualSourceSets.add(first)
         contextualSourceSets.addAll(*others)
+    }
+
+    @JvmName("contextualSourceSetsProvider")
+    fun contextualSourceSets(sourceSets: Iterable<Provider<KotlinSourceSet>>): Unit =
+        sourceSets.forEach { contextualSourceSets.add(it) }
+
+    @JvmName("contextualSourceSetsProvider")
+    fun contextualSourceSets(first: Provider<KotlinSourceSet>, vararg others: Provider<KotlinSourceSet>): Unit {
+        contextualSourceSets.add(first)
+        others.forEach { contextualSourceSets.add(it) }
     }
 
     @get:Input

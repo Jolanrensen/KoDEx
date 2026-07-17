@@ -70,8 +70,24 @@ class KodexPlugin : Plugin<Project> {
             }
 
             afterEvaluate {
-                extension.taskCreators.forEach {
-                    configureRunKodexTasks(it, kotlinSourceSets, kotlinExtension)
+                // pass 1: create a task for every registered source set
+                val taskBySourceSet =
+                    extension.taskCreators.associate { taskCreator ->
+                        taskCreator.inputSourceSet.get() to
+                            configureRunKodexTasks(taskCreator, kotlinSourceSets, kotlinExtension)
+                    }
+
+                // pass 2: for each task, connect the output cache of every contextual source set
+                // that is produced locally to this task's input cache, so its documentables can be
+                // carried over instead of re-analysed. (Cross-module contextual source sets are not
+                // in this map and are handled separately.)
+                extension.taskCreators.forEach { taskCreator ->
+                    val consumer = taskBySourceSet[taskCreator.inputSourceSet.get()]!!
+                    for (contextualSourceSet in taskCreator.contextualSourceSets.get()) {
+                        val producer = taskBySourceSet[contextualSourceSet] ?: continue
+                        consumer.inputCacheFiles.from(producer.outputCacheFile)
+                        consumer.dependsOn(producer)
+                    }
                 }
             }
         }
@@ -80,7 +96,7 @@ class KodexPlugin : Plugin<Project> {
         taskCreator: KodexSourceSetTaskBuilder,
         kotlinSourceSets: NamedDomainObjectContainer<KotlinSourceSet>,
         kotlinExtension: KotlinProjectExtension,
-    ) {
+    ): RunKodexTask {
         val inputSourceSet = taskCreator.inputSourceSet.get()
         val contextualSourceSets = taskCreator.contextualSourceSets.get()
         val sourceSetName = taskCreator.newSourceSetName.get()
@@ -108,6 +124,8 @@ class KodexPlugin : Plugin<Project> {
             sourceSetName = sourceSetName,
             task = task,
         )
+
+        return task
     }
 
     private fun Project.createCompilationsSourceSetsAndJarTasks(
