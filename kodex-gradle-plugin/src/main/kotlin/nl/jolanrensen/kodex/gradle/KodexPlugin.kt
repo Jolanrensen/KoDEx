@@ -56,8 +56,8 @@ class KodexPlugin : Plugin<Project> {
             val kotlinSourceSets = kotlinExtension.sourceSets
 
             val preprocessAll = project.tasks.register("preprocessAllWithKodex") {
-                group = "KoDEx"
-                description = "Runs KoDEx on all subprojects"
+                it.group = "KoDEx"
+                it.description = "Runs KoDEx on all subprojects"
             }
             project.subprojects { subProject ->
                 plugins.withType<KodexPlugin> {
