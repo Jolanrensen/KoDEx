@@ -167,7 +167,6 @@ abstract class RunKodexAction {
                 val path = it.file.toPath().normalize()
                 sourcePaths.any { path.startsWith(it) }
             }.documentablesToProcess
-            .filterValues { it.isNotEmpty() }
 
         cacheModifiedDocumentablesByPath(modifiedDocumentables)
 
