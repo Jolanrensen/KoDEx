@@ -49,18 +49,30 @@ constructor(
     val contextualSourceSets: SetProperty<KotlinSourceSet> = factory.setProperty<KotlinSourceSet>()
         .convention(emptySet())
 
+    /**
+     * Contextual source sets that live the same Gradle project. Unlike [contextualSourceSetsFromOtherProjects].
+     */
     fun contextualSourceSets(sourceSets: Iterable<KotlinSourceSet>): Unit =
         contextualSourceSets.addAll(sourceSets)
 
-    fun contextualSourceSets(first: KotlinSourceSet, vararg others: KotlinSourceSet): Unit {
+    /**
+     * Contextual source sets that live the same Gradle project. Unlike [contextualSourceSetsFromOtherProjects].
+     */
+    fun contextualSourceSets(first: KotlinSourceSet, vararg others: KotlinSourceSet) {
         contextualSourceSets.add(first)
         contextualSourceSets.addAll(*others)
     }
 
+    /**
+     * Contextual source sets that live the same Gradle project. Unlike [contextualSourceSetsFromOtherProjects].
+     */
     @JvmName("contextualSourceSetsProvider")
     fun contextualSourceSets(sourceSets: Iterable<Provider<KotlinSourceSet>>): Unit =
         sourceSets.forEach { contextualSourceSets.add(it) }
 
+    /**
+     * Contextual source sets that live the same Gradle project. Unlike [contextualSourceSetsFromOtherProjects].
+     */
     @JvmName("contextualSourceSetsProvider")
     fun contextualSourceSets(first: Provider<KotlinSourceSet>, vararg others: Provider<KotlinSourceSet>): Unit {
         contextualSourceSets.add(first)
@@ -88,7 +100,11 @@ constructor(
             CrossModuleContextualSourceSet(projectPath, sourceSetName),
         )
 
-    /** @see contextualSourceSet */
+    /**
+     * Adds the source set named [sourceSetName] from the [project]
+     * as a contextual source set. The other project must also apply the KoDEx plugin and `preprocess`
+     * that source set. Only works for projects within the same build.
+     */
     fun contextualSourceSet(project: Project, sourceSetName: String = "main"): Unit =
         contextualSourceSet(project.path, sourceSetName)
 

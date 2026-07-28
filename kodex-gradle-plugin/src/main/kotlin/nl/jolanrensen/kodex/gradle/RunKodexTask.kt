@@ -46,13 +46,23 @@ abstract class RunKodexTask
         /** Source root folders for preprocessing. This needs to be set! */
         fun sources(files: Iterable<File>): Unit = sources.set(files)
 
-        /** Source root folders for preprocessing. */
+        /**
+         * Source root folders included in the context of the preprocessing.
+         * They will not appear in the output, but their KDocs can be referenced and included in [sources].
+         * Can be accompanied by [inputCacheFiles] containing each [outputCacheFile] of all contextual sources,
+         * combined.
+         */
         @get:InputFiles
         val contextualSources: ListProperty<List<File>> = factory
             .listProperty<List<File>>()
             .convention(emptyList())
 
-        /** Source root folders for preprocessing. */
+        /**
+         * Source root folders included in the context of the preprocessing.
+         * They will not appear in the output, but their KDocs can be referenced and included in [sources].
+         * Can be accompanied by [inputCacheFiles] containing each [outputCacheFile] of all contextual sources,
+         * combined.
+         */
         fun contextualSources(files: Iterable<List<File>>): Unit = contextualSources.addAll(files)
 
         /**

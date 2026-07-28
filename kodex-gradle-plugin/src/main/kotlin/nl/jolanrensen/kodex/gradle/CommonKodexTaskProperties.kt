@@ -182,17 +182,47 @@ interface CommonKodexTaskProperties {
     /** Accepts [org.jetbrains.dokka.Platform] values. */
     fun analysisPlatform(platform: String?): Unit = analysisPlatform.set(platform)
 
-    /** Where this task should store its output. */
+    /**
+     * Where this task should store its produced output cache.
+     *
+     * This can be wired to other KoDEx tasks that have these [RunKodexTask.sources] as [RunKodexTask.contextualSources]
+     * via that task's [inputCacheFiles]. This saves reprocessing sources multiple times.
+     *
+     * It's connected automatically when using [KodexSourceSetTaskBuilder.contextualSourceSets].
+     */
     @get:OutputFile
     val outputCacheFile: RegularFileProperty
 
-    /** Where this task should store its output. */
+    /**
+     * Where this task should store its produced output cache.
+     *
+     * This can be wired to other KoDEx tasks that have these [RunKodexTask.sources] as [RunKodexTask.contextualSources]
+     * via that task's [inputCacheFiles]. This saves reprocessing sources multiple times.
+     *
+     * It's connected automatically when using [KodexSourceSetTaskBuilder.contextualSourceSets].
+     */
     fun outputCacheFile(file: File): Unit = outputCacheFile.set(file)
 
+    /**
+     * The input cache files of this task.
+     *
+     * When using [RunKodexTask.contextualSources], the [outputCacheFile] of each KoDEx task can be combined
+     * and wired here. This saves reprocessing sources multiple times.
+     *
+     * It's connected automatically when using [KodexSourceSetTaskBuilder.contextualSourceSets].
+     */
     @get:InputFiles
     @get:Optional
     val inputCacheFiles: ConfigurableFileCollection
 
+    /**
+     * The input cache files of this task.
+     *
+     * When using [RunKodexTask.contextualSources], the [outputCacheFile] of each KoDEx task can be combined
+     * and wired here. This saves reprocessing sources multiple times.
+     *
+     * It's connected automatically when using [KodexSourceSetTaskBuilder.contextualSourceSets].
+     */
     fun inputCacheFiles(files: Iterable<File>) {
         inputCacheFiles.from(files)
     }
