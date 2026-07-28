@@ -149,8 +149,8 @@ fun DocumentableWrapper.Companion.createFromDokkaOrNull(
         docIndent = docIndent,
         annotations = annotations,
         fileTextRange = fileTextRange,
-        origin = documentable,
+        origin = null,
     )
 }
 
-fun DocumentableWrapper.getOrigin(): Documentable = origin as Documentable
+// fun DocumentableWrapper.getOrigin(): Documentable = origin as Documentable

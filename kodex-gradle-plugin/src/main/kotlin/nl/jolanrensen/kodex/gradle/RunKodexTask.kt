@@ -46,13 +46,23 @@ abstract class RunKodexTask
         /** Source root folders for preprocessing. This needs to be set! */
         fun sources(files: Iterable<File>): Unit = sources.set(files)
 
-        /** Source root folders for preprocessing. */
+        /**
+         * Source root folders included in the context of the preprocessing.
+         * They will not appear in the output, but their KDocs can be referenced and included in [sources].
+         * Can be accompanied by [inputCacheFiles] containing each [outputCacheFile] of all contextual sources,
+         * combined.
+         */
         @get:InputFiles
         val contextualSources: ListProperty<List<File>> = factory
             .listProperty<List<File>>()
             .convention(emptyList())
 
-        /** Source root folders for preprocessing. */
+        /**
+         * Source root folders included in the context of the preprocessing.
+         * They will not appear in the output, but their KDocs can be referenced and included in [sources].
+         * Can be accompanied by [inputCacheFiles] containing each [outputCacheFile] of all contextual sources,
+         * combined.
+         */
         fun contextualSources(files: Iterable<List<File>>): Unit = contextualSources.addAll(files)
 
         /**
@@ -169,7 +179,6 @@ abstract class RunKodexTask
             workQueue.submit(RunKodexGradleAction::class.java) {
                 it.baseDir = baseDir.get()
                 it.sources = sourceSetSpec
-                it.sourceRoots = sourceRoots
                 it.target = target
                 it.processors = processors
                 it.processLimit = processLimit.get()
@@ -177,6 +186,8 @@ abstract class RunKodexTask
                 it.exportAsHtmlDir = exportAsHtml.get().dir.get()
                 it.outputReadOnly = outputReadOnly.get()
                 it.htmlOutputReadOnly = exportAsHtml.get().outputReadOnly.get()
+                it.outputCacheFile = outputCacheFile.getOrNull()?.asFile
+                it.inputCacheFiles = inputCacheFiles.files.toList()
             }
         }
     }

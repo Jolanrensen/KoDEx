@@ -1,6 +1,8 @@
 package nl.jolanrensen.kodex.documentableWrapper
 
-data class AnnotationWrapper(val fullyQualifiedPath: String, val arguments: List<Pair<String?, Any?>>) {
+import java.io.Serializable
+
+data class AnnotationWrapper(val fullyQualifiedPath: String, val arguments: List<Pair<String?, Any?>>) : Serializable {
     override fun toString(): String =
         if (arguments.isEmpty()) {
             "@$fullyQualifiedPath"

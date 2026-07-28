@@ -20,7 +20,7 @@ interface DocumentablesByPath {
 
     val documentablesToProcessFilter: DocumentableWrapperFilter
 
-    val documentablesToProcess: Map<String, List<DocumentableWrapper>>
+    val documentablesToProcess: DocumentablesByPathMap
 
     /**
      * Whether [DocumentableWrapper.getAllFullPathsFromHereForTargetPath] needs to be used to do
@@ -62,7 +62,7 @@ interface DocumentablesByPath {
     ): DocumentablesByPath
 
     companion object {
-        fun of(map: Map<String, List<DocumentableWrapper>>, loadedProcessors: List<DocProcessor>): DocumentablesByPath =
+        fun of(map: DocumentablesByPathMap, loadedProcessors: List<DocProcessor>): DocumentablesByPath =
             DocumentablesByPathFromMap(map, loadedProcessors)
 
         fun of(
@@ -107,7 +107,7 @@ fun <T : DocumentablesByPath> T.withoutFilters(): T =
         else -> this.withFilters(NO_FILTER, NO_FILTER) as T
     }
 
-fun Map<String, List<DocumentableWrapper>>.toDocumentablesByPath(
+fun DocumentablesByPathMap.toDocumentablesByPath(
     loadedProcessors: List<DocProcessor>,
 ): DocumentablesByPath = DocumentablesByPath.of(this, loadedProcessors)
 
@@ -122,7 +122,7 @@ fun Iterable<Pair<String, List<DocumentableWrapper>>>.toDocumentablesByPath(
  * The [MutableDocumentableWrapper] is a copy of the original [DocumentableWrapper].
  */
 @Suppress("UNCHECKED_CAST")
-internal fun Map<String, List<DocumentableWrapper>>.toMutable(): Map<String, List<MutableDocumentableWrapper>> =
+internal fun DocumentablesByPathMap.toMutable(): Map<String, List<MutableDocumentableWrapper>> =
     mapValues { (_, documentables) ->
         if (documentables.all { it is MutableDocumentableWrapper }) {
             documentables as List<MutableDocumentableWrapper>

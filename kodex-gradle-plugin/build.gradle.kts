@@ -16,7 +16,7 @@ plugins {
 group = "nl.jolanrensen.kodex"
 version = "0.5.6-SNAPSHOT"
 
-val kotlinVersion = "2.2.21"
+val kotlinVersion = "2.4.0"
 val dokkaVersion = "2.2.0"
 
 publishing {
@@ -34,7 +34,7 @@ repositories {
     maven("https://plugins.gradle.org/m2/")
 }
 
-// Enforce Kotlin 2.2.21 for any Kotlin artifacts that appear transitively
+// Enforce the same Kotlin version for any Kotlin artifacts that appear transitively
 configurations.all {
     resolutionStrategy {
         force(

@@ -5,6 +5,7 @@ import org.gradle.api.Project
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
@@ -41,17 +42,71 @@ constructor(
 
     fun newSourceSetName(string: String): Unit = newSourceSetName.set(string)
 
+    /**
+     * Contextual source sets that live the same Gradle project. Unlike [contextualSourceSetsFromOtherProjects].
+     */
     @get:Input
     val contextualSourceSets: SetProperty<KotlinSourceSet> = factory.setProperty<KotlinSourceSet>()
         .convention(emptySet())
 
+    /**
+     * Contextual source sets that live the same Gradle project. Unlike [contextualSourceSetsFromOtherProjects].
+     */
     fun contextualSourceSets(sourceSets: Iterable<KotlinSourceSet>): Unit =
         contextualSourceSets.addAll(sourceSets)
 
-    fun contextualSourceSets(first: KotlinSourceSet, vararg others: KotlinSourceSet): Unit {
+    /**
+     * Contextual source sets that live the same Gradle project. Unlike [contextualSourceSetsFromOtherProjects].
+     */
+    fun contextualSourceSets(first: KotlinSourceSet, vararg others: KotlinSourceSet) {
         contextualSourceSets.add(first)
         contextualSourceSets.addAll(*others)
     }
+
+    /**
+     * Contextual source sets that live the same Gradle project. Unlike [contextualSourceSetsFromOtherProjects].
+     */
+    @JvmName("contextualSourceSetsProvider")
+    fun contextualSourceSets(sourceSets: Iterable<Provider<KotlinSourceSet>>): Unit =
+        sourceSets.forEach { contextualSourceSets.add(it) }
+
+    /**
+     * Contextual source sets that live the same Gradle project. Unlike [contextualSourceSetsFromOtherProjects].
+     */
+    @JvmName("contextualSourceSetsProvider")
+    fun contextualSourceSets(first: Provider<KotlinSourceSet>, vararg others: Provider<KotlinSourceSet>): Unit {
+        contextualSourceSets.add(first)
+        others.forEach { contextualSourceSets.add(it) }
+    }
+
+    /**
+     * Contextual source sets that live in another Gradle project. Unlike [contextualSourceSets],
+     * these cannot be referenced as [KotlinSourceSet] objects across the project boundary, so they
+     * are resolved lazily through variant-aware configurations. The other project's KoDEx output
+     * cache and source directories are carried over, letting their documentables resolve without
+     * re-analysing them here.
+     */
+    @get:Internal
+    internal val contextualSourceSetsFromOtherProjects: SetProperty<CrossModuleContextualSourceSet> =
+        factory.setProperty<CrossModuleContextualSourceSet>().convention(emptySet())
+
+    /**
+     * Adds the source set named [sourceSetName] from the project at [projectPath] (e.g. `":other"`)
+     * as a contextual source set. The other project must also apply the KoDEx plugin and `preprocess`
+     * that source set. Only works for projects within the same build.
+     */
+    fun contextualSourceSet(projectPath: String, sourceSetName: String = "main"): Unit =
+        contextualSourceSetsFromOtherProjects.add(
+            CrossModuleContextualSourceSet(projectPath, sourceSetName),
+        )
+
+    /**
+     * Adds the source set named [sourceSetName] from the [project]
+     * as a contextual source set. The other project must also apply the KoDEx plugin and `preprocess`
+     * that source set. Only works for projects within the same build.
+     */
+    fun contextualSourceSet(project: Project, sourceSetName: String = "main"): Unit =
+        contextualSourceSet(project.path, sourceSetName)
 
     @get:Input
     val taskName: Property<String> = factory.property<String>()

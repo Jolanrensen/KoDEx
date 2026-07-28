@@ -13,7 +13,9 @@ import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.jvm.tasks.Jar
 import org.gradle.kotlin.dsl.get
+import org.gradle.kotlin.dsl.hasPlugin
 import org.gradle.kotlin.dsl.register
+import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinSingleTargetExtension
@@ -53,9 +55,42 @@ class KodexPlugin : Plugin<Project> {
 
             val kotlinSourceSets = kotlinExtension.sourceSets
 
+            val preprocessAll = project.tasks.register("preprocessAllWithKodex") {
+                it.group = "KoDEx"
+                it.description = "Runs KoDEx on all subprojects"
+            }
+            project.subprojects { subProject ->
+                plugins.withType<KodexPlugin> {
+                    subProject.tasks.withType<RunKodexTask>().configureEach { task ->
+                        preprocessAll.configure {
+                            it.dependsOn(task)
+                        }
+                    }
+                }
+            }
+
             afterEvaluate {
-                extension.taskCreators.forEach {
-                    configureRunKodexTasks(it, kotlinSourceSets, kotlinExtension)
+                // pass 1: create a task for every registered source set
+                val taskBySourceSet =
+                    extension.taskCreators.associate { taskCreator ->
+                        taskCreator.inputSourceSet.get() to
+                            configureRunKodexTasks(taskCreator, kotlinSourceSets, kotlinExtension)
+                    }
+
+                // pass 2: for each task, connect the output cache of every contextual source set
+                // that is produced locally to this task's input cache, so its documentables can be
+                // carried over instead of re-analysed. (Cross-module contextual source sets are not
+                // in this map and are handled separately.)
+                extension.taskCreators.forEach { taskCreator ->
+                    val consumer = taskBySourceSet[taskCreator.inputSourceSet.get()]!!
+                    for (contextualSourceSet in taskCreator.contextualSourceSets.get()) {
+                        val producer = taskBySourceSet[contextualSourceSet] ?: continue
+                        consumer.inputCacheFiles.from(producer.outputCacheFile)
+                        consumer.dependsOn(producer)
+                    }
+
+                    // contextual source sets coming from other modules
+                    wireCrossModuleContextualCaches(consumer, taskCreator)
                 }
             }
         }
@@ -64,7 +99,7 @@ class KodexPlugin : Plugin<Project> {
         taskCreator: KodexSourceSetTaskBuilder,
         kotlinSourceSets: NamedDomainObjectContainer<KotlinSourceSet>,
         kotlinExtension: KotlinProjectExtension,
-    ) {
+    ): RunKodexTask {
         val inputSourceSet = taskCreator.inputSourceSet.get()
         val contextualSourceSets = taskCreator.contextualSourceSets.get()
         val sourceSetName = taskCreator.newSourceSetName.get()
@@ -77,7 +112,7 @@ class KodexPlugin : Plugin<Project> {
             group = "KoDEx"
             description = "Runs KoDEx $sourceSetName on the ${inputSourceSet.name} sources"
             contextualSources.set(
-                contextualSourceSets.map { it.kotlin.sourceDirectories.toList() }
+                contextualSourceSets.map { it.kotlin.sourceDirectories.toList() },
             )
             applyPropertiesFrom(taskCreator)
             taskCreator.runOnTask.get().forEach {
@@ -92,6 +127,11 @@ class KodexPlugin : Plugin<Project> {
             sourceSetName = sourceSetName,
             task = task,
         )
+
+        // expose this task's output cache and sources so other modules can use it as a contextual source set
+        exposeContextualCaches(taskCreator, task)
+
+        return task
     }
 
     private fun Project.createCompilationsSourceSetsAndJarTasks(

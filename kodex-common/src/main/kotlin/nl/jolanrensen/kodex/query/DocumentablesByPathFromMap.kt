@@ -3,6 +3,10 @@ package nl.jolanrensen.kodex.query
 import nl.jolanrensen.kodex.documentableWrapper.DocumentableWrapper
 import nl.jolanrensen.kodex.documentableWrapper.MutableDocumentableWrapper
 import nl.jolanrensen.kodex.processor.DocProcessor
+import java.io.BufferedOutputStream
+import java.io.File
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
 
 open class DocumentablesByPathFromMap(
     private val allDocs: Map<String, List<DocumentableWrapper>>,
