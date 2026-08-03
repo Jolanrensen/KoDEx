@@ -172,8 +172,25 @@ abstract class RunKodexTask
                 classpath = projectClassPath.get(),
             )
 
-            val workQueue = workerExecutor.classLoaderIsolation {
-                it.classpath.setFrom(runtime)
+            val isolation = workerIsolation.get()
+            val workQueue = when (isolation.mode.get()) {
+                // A fresh JVM per worker. Keeps Dokka's Analysis API (and the jar handles and static state it
+                // leaves behind) out of the Gradle daemon, which otherwise breaks when multiple KoDEx tasks
+                // run in one build. See KodexIsolationMode.PROCESS.
+                KodexIsolationMode.PROCESS ->
+                    workerExecutor.processIsolation {
+                        it.classpath.setFrom(runtime)
+                        it.forkOptions { forkOptions ->
+                            isolation.maxHeapSize.orNull?.let { size -> forkOptions.maxHeapSize = size }
+                            isolation.jvmArgs.get().takeIf { args -> args.isNotEmpty() }
+                                ?.let { args -> forkOptions.jvmArgs(args) }
+                        }
+                    }
+
+                KodexIsolationMode.CLASS_LOADER ->
+                    workerExecutor.classLoaderIsolation {
+                        it.classpath.setFrom(runtime)
+                    }
             }
 
             workQueue.submit(RunKodexGradleAction::class.java) {

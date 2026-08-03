@@ -208,6 +208,14 @@ val processKdocMain by creatingProcessDocTask(sources = kotlinMainSources) {
     exportAsHtml {
       dir = file("../docs/StardustDocs/snippets")
     }
+
+    // Optional. Controls how KoDEx is launched. By default it runs in a separate JVM with a 2 GB heap.
+    // Running it inside the Gradle daemon (KodexIsolationMode.CLASS_LOADER) avoids forking a JVM, but is only
+    // safe if at most one KoDEx task runs at a time; see the KodexIsolationMode KDocs.
+    workerIsolation {
+      mode = KodexIsolationMode.PROCESS
+      maxHeapSize = "2g"
+    }
 }
 
 // Modify all Jar tasks such that before running the Kotlin sources are set to 

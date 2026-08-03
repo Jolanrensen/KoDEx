@@ -115,6 +115,28 @@ interface CommonKodexTaskProperties {
     fun exportAsHtml(action: Action<ExportAsHtmlDsl>): Unit = action.execute(exportAsHtml.get())
 
     /**
+     * How KoDEx is launched. By default, in a separate JVM ([KodexIsolationMode.PROCESS]).
+     *
+     * @see KodexWorkerIsolationDsl
+     */
+    @get:Nested
+    val workerIsolation: Property<KodexWorkerIsolationDsl>
+
+    /**
+     * DSL for configuring how KoDEx is launched.
+     *
+     * ```kotlin
+     * workerIsolation {
+     *     mode = KodexIsolationMode.PROCESS
+     *     maxHeapSize = "2g"
+     * }
+     * ```
+     *
+     * @see KodexWorkerIsolationDsl
+     */
+    fun workerIsolation(action: Action<KodexWorkerIsolationDsl>): Unit = action.execute(workerIsolation.get())
+
+    /**
      * DSL to add plugin dependencies to the current task. If you want to include a processor from an external library,
      * that library needs to be added to the classpath of this task using this DSL.
      *
@@ -287,6 +309,13 @@ fun CommonKodexTaskProperties.applyPropertiesFrom(other: CommonKodexTaskProperti
     if (otherExportAsHtml.outputReadOnly.isPresent) {
         exportAsHtml.get().outputReadOnly.set(otherExportAsHtml.outputReadOnly)
     }
+
+    val otherWorkerIsolation = other.workerIsolation.get()
+    workerIsolation.get().let {
+        it.mode.set(otherWorkerIsolation.mode)
+        it.maxHeapSize.set(otherWorkerIsolation.maxHeapSize)
+        it.jvmArgs.set(otherWorkerIsolation.jvmArgs)
+    }
 }
 
 fun CommonKodexTaskProperties.applyConventions(project: Project, factory: ObjectFactory, folderName: String) {
@@ -323,6 +352,12 @@ fun CommonKodexTaskProperties.applyConventions(project: Project, factory: Object
     exportAsHtmlInstance.dir.convention(target.map { File(it, "htmlExports") })
     exportAsHtmlInstance.outputReadOnly.convention(true)
     exportAsHtml.set(exportAsHtmlInstance)
+
+    val workerIsolationInstance = factory.newInstance(KodexWorkerIsolationDsl::class.java)
+    workerIsolationInstance.mode.convention(KodexIsolationMode.PROCESS)
+    workerIsolationInstance.maxHeapSize.convention("1g")
+    workerIsolationInstance.jvmArgs.convention(emptyList())
+    workerIsolation.set(workerIsolationInstance)
 }
 
 internal fun Project.maybeCreateRuntimeConfiguration(): Configuration =
