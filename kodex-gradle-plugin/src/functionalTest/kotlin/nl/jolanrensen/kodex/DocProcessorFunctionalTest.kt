@@ -11,7 +11,7 @@ import java.io.File
 import java.io.FileWriter
 import java.io.IOException
 
-val VERSION = "0.6.1"
+val VERSION = "0.6.2-SNAPSHOT"
 
 abstract class DocProcessorFunctionalTest(name: String) {
 
