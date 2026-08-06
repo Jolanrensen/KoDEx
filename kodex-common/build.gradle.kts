@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "nl.jolanrensen.kodex"
-version = "0.6.2-SNAPSHOT"
+version = "0.6.2"
 
 val kotlinVersion = "2.4.0"
 
