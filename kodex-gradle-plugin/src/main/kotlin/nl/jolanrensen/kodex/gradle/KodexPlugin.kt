@@ -42,9 +42,6 @@ import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
 class KodexPlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
-            // add maven central to repositories, which is needed to add dokka as a dependency in RunKodexTasks
-            repositories.mavenCentral()
-
             val objects = objects
             val extension: KodexExtension = objects.newInstance(KodexExtension::class.java)
             extensions.add("kodex", extension)
