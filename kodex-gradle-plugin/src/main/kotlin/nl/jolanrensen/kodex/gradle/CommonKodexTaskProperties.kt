@@ -5,6 +5,7 @@ import nl.jolanrensen.kodex.defaultProcessors.COMMENT_DOC_PROCESSOR
 import nl.jolanrensen.kodex.defaultProcessors.EXPORT_AS_HTML_DOC_PROCESSOR
 import nl.jolanrensen.kodex.defaultProcessors.INCLUDE_DOC_PROCESSOR
 import nl.jolanrensen.kodex.defaultProcessors.INCLUDE_FILE_DOC_PROCESSOR
+import nl.jolanrensen.kodex.defaultProcessors.REFERENCE_CODE_SPAN_DOC_PROCESSOR
 import nl.jolanrensen.kodex.defaultProcessors.REMOVE_ESCAPE_CHARS_PROCESSOR
 import nl.jolanrensen.kodex.defaultProcessors.SAMPLE_DOC_PROCESSOR
 import org.gradle.api.Action
@@ -334,6 +335,7 @@ fun CommonKodexTaskProperties.applyConventions(project: Project, factory: Object
             ARG_DOC_PROCESSOR,
             SAMPLE_DOC_PROCESSOR,
             EXPORT_AS_HTML_DOC_PROCESSOR,
+            REFERENCE_CODE_SPAN_DOC_PROCESSOR,
             REMOVE_ESCAPE_CHARS_PROCESSOR,
         ),
     )

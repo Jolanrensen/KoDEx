@@ -8,3 +8,4 @@ nl.jolanrensen.kodex.defaultProcessors.CommentDocProcessor
 nl.jolanrensen.kodex.defaultProcessors.ExportAsHtmlDocProcessor
 nl.jolanrensen.kodex.defaultProcessors.ArgDocProcessor
 nl.jolanrensen.kodex.defaultProcessors.RemoveEscapeCharsProcessor
+nl.jolanrensen.kodex.defaultProcessors.ReferenceCodeSpanDocProcessor

@@ -5,7 +5,7 @@ import nl.jolanrensen.kodex.docContent.asDocContent
 import nl.jolanrensen.kodex.docContent.asDocTextOrNull
 import nl.jolanrensen.kodex.docContent.getDocContent
 import nl.jolanrensen.kodex.docContent.javaLinkRegex
-import nl.jolanrensen.kodex.docContent.replaceKdocLinks
+import nl.jolanrensen.kodex.docContent.replaceKdocReferenceLinks
 import nl.jolanrensen.kodex.docContent.toDocText
 import nl.jolanrensen.kodex.documentableWrapper.DocumentableWrapper
 import nl.jolanrensen.kodex.documentableWrapper.ProgrammingLanguage.JAVA
@@ -240,7 +240,7 @@ class IncludeDocProcessor : TagDocProcessor() {
         targetContent = when (documentable.programmingLanguage) {
             // if the content contains links to other elements, we need to expand the path
             // providing the original name or alias as new alias.
-            KOTLIN -> targetContent.replaceKdocLinks { query ->
+            KOTLIN -> targetContent.replaceKdocReferenceLinks { query ->
                 targetDocumentable.queryDocumentablesForPath(
                     query = query,
                     documentables = unfilteredDocumentablesByPath,

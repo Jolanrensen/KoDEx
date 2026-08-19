@@ -2,7 +2,8 @@ package nl.jolanrensen.kodex
 
 import io.kotest.matchers.shouldBe
 import nl.jolanrensen.kodex.docContent.asDocContent
-import nl.jolanrensen.kodex.docContent.replaceKdocLinks
+import nl.jolanrensen.kodex.docContent.replaceKdocAliases
+import nl.jolanrensen.kodex.docContent.replaceKdocReferenceLinks
 import nl.jolanrensen.kodex.utils.indexOfFirstOrNullWhile
 import nl.jolanrensen.kodex.utils.indexOfLastOrNullWhile
 import nl.jolanrensen.kodex.utils.lastIndexOfNot
@@ -72,7 +73,7 @@ class TestStringUtils {
             `\[ `__`.`__[**`where`**][Update.where]**`  {  `**[`rowValueCondition`][SelectingRows.RowValueCondition.WithExample]**`  }  `**`]`
         """.trimIndent().asDocContent()
 
-        val res = someText.replaceKdocLinks { "NewPath.$it" }
+        val res = someText.replaceKdocReferenceLinks { "NewPath.$it" }
 
         res shouldBe """
             [H[ello][NewPath.ello] [World][NewPath.World]!
@@ -90,11 +91,51 @@ class TestStringUtils {
             """`MyType::myColumn`[`[`][ColumnsContainer.get]`MyOtherType::myOtherColumn`[`]`][`Columns Container`.get]"""
                 .asDocContent()
 
-        val res = someText.replaceKdocLinks { "$it.New Path" }
+        val res = someText.replaceKdocReferenceLinks { "$it.New Path" }
 
         res shouldBe
             """`MyType::myColumn`[`[`][ColumnsContainer.get.`New Path`]`MyOtherType::myOtherColumn`[`]`][`Columns Container`.get.`New Path`]"""
                 .asDocContent()
+    }
+
+    @Test
+    fun `Replace KDoc aliases`() {
+        val someText = """
+            Hello [World]!
+            This is [an alias][reference].
+            @param [name] but not [thisOne]
+            @throws[SomeException] when it fails
+            
+              @see [Something]
+            
+               @see [SomethingElse]
+            {@include [NotABlockTag]}
+            Text before @param [notATagHere]
+        """.trimIndent().asDocContent()
+
+        val res = someText.replaceKdocAliases { "`$it`" }
+
+        res shouldBe """
+            Hello [`World`][World]!
+            This is [`an alias`][reference].
+            @param [name] but not [`thisOne`][thisOne]
+            @throws[SomeException] when it fails
+            
+              @see [Something]
+            
+               @see [`SomethingElse`][SomethingElse]
+            {@include [`NotABlockTag`][NotABlockTag]}
+            Text before @param [`notATagHere`][notATagHere]
+        """.trimIndent().asDocContent()
+    }
+
+    @Test
+    fun `Replace KDoc aliases leaves aliased references after block tags alone`() {
+        val someText = """
+            @param [Alias][name] description
+        """.trimIndent().asDocContent()
+
+        someText.replaceKdocAliases { "`$it`" } shouldBe someText
     }
 
     @Test
