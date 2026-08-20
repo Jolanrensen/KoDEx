@@ -1,6 +1,7 @@
 package nl.jolanrensen.kodex
 
 import io.kotest.matchers.shouldBe
+import nl.jolanrensen.kodex.defaultProcessors.addCodeSpansToAliases
 import nl.jolanrensen.kodex.docContent.asDocContent
 import nl.jolanrensen.kodex.docContent.replaceKdocAliases
 import nl.jolanrensen.kodex.docContent.replaceKdocReferenceLinks
@@ -9,6 +10,7 @@ import nl.jolanrensen.kodex.utils.indexOfLastOrNullWhile
 import nl.jolanrensen.kodex.utils.lastIndexOfNot
 import nl.jolanrensen.kodex.utils.removeEscapeCharacters
 import nl.jolanrensen.kodex.utils.replaceNonOverlappingRanges
+import nl.jolanrensen.kodex.utils.surroundWith
 import org.junit.jupiter.api.Test
 
 class TestStringUtils {
@@ -102,7 +104,7 @@ class TestStringUtils {
     fun `Replace KDoc aliases`() {
         val someText = """
             Hello [World]!
-            This is [an alias][reference].
+            This is [an `alias`][reference].
             @param [name] but not [thisOne]
             @throws[SomeException] when it fails
             
@@ -111,21 +113,25 @@ class TestStringUtils {
                @see [SomethingElse]
             {@include [NotABlockTag]}
             Text before @param [notATagHere]
+            This is a [**`special`**][grammar]
+            This is a [__`special`__][grammar]
         """.trimIndent().asDocContent()
 
-        val res = someText.replaceKdocAliases { "`$it`" }
+        val res = someText.addCodeSpansToAliases()
 
         res shouldBe """
-            Hello [`World`][World]!
-            This is [`an alias`][reference].
-            @param [name] but not [`thisOne`][thisOne]
+            Hello [<code>World</code>][World]!
+            This is [<code>an `alias`</code>][reference].
+            @param [name] but not [<code>thisOne</code>][thisOne]
             @throws[SomeException] when it fails
             
               @see [Something]
             
-               @see [`SomethingElse`][SomethingElse]
-            {@include [`NotABlockTag`][NotABlockTag]}
-            Text before @param [`notATagHere`][notATagHere]
+               @see [<code>SomethingElse</code>][SomethingElse]
+            {@include [<code>NotABlockTag</code>][NotABlockTag]}
+            Text before @param [<code>notATagHere</code>][notATagHere]
+            This is a [<code>**`special`**</code>][grammar]
+            This is a [<code>__`special`__</code>][grammar]
         """.trimIndent().asDocContent()
     }
 
