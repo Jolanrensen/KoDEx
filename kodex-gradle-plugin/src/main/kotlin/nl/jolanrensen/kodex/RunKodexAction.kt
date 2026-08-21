@@ -117,7 +117,6 @@ abstract class RunKodexAction {
         this.contextualSources = contextualSources
     }
 
-
     protected suspend fun process() {
         log.lifecycle { "Running RunKodexAction using Kotlin: ${KotlinVersion.CURRENT}" }
 
@@ -196,7 +195,9 @@ abstract class RunKodexAction {
         val cache = parameters.inputCacheFiles.mapNotNull { file ->
             try {
                 readDocumentablesByPathMapFromCache(file).also {
-                    log.lifecycle { "Read cache file ${file.absolutePath}. KoDEx will try applying this cache for contextual sources." }
+                    log.lifecycle {
+                        "Read cache file ${file.absolutePath}. KoDEx will try applying this cache for contextual sources."
+                    }
                 }
             } catch (e: Exception) {
                 log.warn(e) { "Could not read cache file ${file.absolutePath}: ${e.message}" }
@@ -207,7 +208,9 @@ abstract class RunKodexAction {
         return cache
     }
 
-    private fun analyseSourcesWithDokka(cachedContextualDocumentables: DocumentablesByPathMap): (List<DocProcessor>) -> DocumentablesByPath {
+    private fun analyseSourcesWithDokka(
+        cachedContextualDocumentables: DocumentablesByPathMap,
+    ): (List<DocProcessor>) -> DocumentablesByPath {
         val contextualSourceSetByPath = contextualSources
             .asSequence()
             .flatMap { sourceSet -> sourceSet.sourceRoots.map { it.toPath().normalize() to sourceSet } }
@@ -228,7 +231,9 @@ abstract class RunKodexAction {
                         }
                     }
                     if (normalSourcePaths.any { path.startsWith(it) }) {
-                        error("Sources were found in input cache files. Only contextual sources can be supplied as caches.")
+                        error(
+                            "Sources were found in input cache files. Only contextual sources can be supplied as caches.",
+                        )
                     }
                 }
             }

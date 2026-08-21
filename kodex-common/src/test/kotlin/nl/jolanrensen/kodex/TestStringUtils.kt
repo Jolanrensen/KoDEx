@@ -1,13 +1,16 @@
 package nl.jolanrensen.kodex
 
 import io.kotest.matchers.shouldBe
+import nl.jolanrensen.kodex.defaultProcessors.addCodeSpansToAliases
 import nl.jolanrensen.kodex.docContent.asDocContent
-import nl.jolanrensen.kodex.docContent.replaceKdocLinks
+import nl.jolanrensen.kodex.docContent.replaceKdocAliases
+import nl.jolanrensen.kodex.docContent.replaceKdocReferenceLinks
 import nl.jolanrensen.kodex.utils.indexOfFirstOrNullWhile
 import nl.jolanrensen.kodex.utils.indexOfLastOrNullWhile
 import nl.jolanrensen.kodex.utils.lastIndexOfNot
 import nl.jolanrensen.kodex.utils.removeEscapeCharacters
 import nl.jolanrensen.kodex.utils.replaceNonOverlappingRanges
+import nl.jolanrensen.kodex.utils.surroundWith
 import org.junit.jupiter.api.Test
 
 class TestStringUtils {
@@ -72,7 +75,7 @@ class TestStringUtils {
             `\[ `__`.`__[**`where`**][Update.where]**`  {  `**[`rowValueCondition`][SelectingRows.RowValueCondition.WithExample]**`  }  `**`]`
         """.trimIndent().asDocContent()
 
-        val res = someText.replaceKdocLinks { "NewPath.$it" }
+        val res = someText.replaceKdocReferenceLinks { "NewPath.$it" }
 
         res shouldBe """
             [H[ello][NewPath.ello] [World][NewPath.World]!
@@ -90,11 +93,75 @@ class TestStringUtils {
             """`MyType::myColumn`[`[`][ColumnsContainer.get]`MyOtherType::myOtherColumn`[`]`][`Columns Container`.get]"""
                 .asDocContent()
 
-        val res = someText.replaceKdocLinks { "$it.New Path" }
+        val res = someText.replaceKdocReferenceLinks { "$it.New Path" }
 
         res shouldBe
             """`MyType::myColumn`[`[`][ColumnsContainer.get.`New Path`]`MyOtherType::myOtherColumn`[`]`][`Columns Container`.get.`New Path`]"""
                 .asDocContent()
+    }
+
+    @Test
+    fun `Replace KDoc aliases`() {
+        val someText = """
+            Hello [World]!
+            This is [an `alias`][reference].
+            @param [name] but not [thisOne]
+            @throws[SomeException] when it fails
+            
+              @see [Something]
+            
+               @see [shouldNotBeReplaced], this is code
+            {@include [NotABlockTag]}
+            Text before @param [notATagHere]
+            This is a [**`special`**][grammar]
+            This is a [__`special`__][grammar]
+            This is `code [shouldNotBeReplaced]` and `[this][alsoNot]`
+            ```kotlin
+            this [shouldNotBeReplaced]
+            [this][alsoNot]
+            ~~~
+            ```
+            ~~~~kotlin
+            [this][alsoNot]
+            ````````
+            ~~~~
+        """.trimIndent().asDocContent()
+
+        val res = someText.addCodeSpansToAliases()
+
+        res shouldBe """
+            Hello [<code>World</code>][World]!
+            This is [<code>an `alias`</code>][reference].
+            @param [name] but not [<code>thisOne</code>][thisOne]
+            @throws[SomeException] when it fails
+            
+              @see [Something]
+            
+               @see [shouldNotBeReplaced], this is code
+            {@include [<code>NotABlockTag</code>][NotABlockTag]}
+            Text before @param [<code>notATagHere</code>][notATagHere]
+            This is a [<code>**`special`**</code>][grammar]
+            This is a [<code>__`special`__</code>][grammar]
+            This is `code [shouldNotBeReplaced]` and `[this][alsoNot]`
+            ```kotlin
+            this [shouldNotBeReplaced]
+            [this][alsoNot]
+            ~~~
+            ```
+            ~~~~kotlin
+            [this][alsoNot]
+            ````````
+            ~~~~
+        """.trimIndent().asDocContent()
+    }
+
+    @Test
+    fun `Replace KDoc aliases leaves aliased references after block tags alone`() {
+        val someText = """
+            @param [Alias][name] description
+        """.trimIndent().asDocContent()
+
+        someText.replaceKdocAliases { "`$it`" } shouldBe someText
     }
 
     @Test

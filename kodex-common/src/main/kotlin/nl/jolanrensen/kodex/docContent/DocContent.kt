@@ -1,8 +1,9 @@
 package nl.jolanrensen.kodex.docContent
 
-import nl.jolanrensen.kodex.docContent.ReferenceState.INSIDE_ALIASED_REFERENCE
-import nl.jolanrensen.kodex.docContent.ReferenceState.INSIDE_REFERENCE
-import nl.jolanrensen.kodex.docContent.ReferenceState.NONE
+import nl.jolanrensen.kodex.docContent.KdocLinkPart.ALIAS_PART
+import nl.jolanrensen.kodex.docContent.KdocLinkPart.OUTSIDE_LINK
+import nl.jolanrensen.kodex.docContent.KdocLinkPart.PLAIN_LINK
+import nl.jolanrensen.kodex.docContent.KdocLinkPart.REFERENCE_PART
 import nl.jolanrensen.kodex.utils.BACKTICKS
 import nl.jolanrensen.kodex.utils.CURLY_BRACES
 import nl.jolanrensen.kodex.utils.getTagNameOrNull
@@ -225,17 +226,184 @@ val docRegex = Regex("""( *)/\*\*([^*]|\*(?!/))*?\*/""")
 
 val javaLinkRegex = Regex("""\{@link.*}""")
 
-private enum class ReferenceState {
-    NONE,
-    INSIDE_REFERENCE,
-    INSIDE_ALIASED_REFERENCE,
+/**
+ * Which part of a KDoc link the scanner is currently inside.
+ *
+ * A KDoc link is either plain, `[Reference]`, where the content is both the displayed text and the
+ * reference link, or aliased, `[Alias][Reference]`, where the two are separate.
+ */
+private enum class KdocLinkPart {
+    /** Not inside any `[...]`. */
+    OUTSIDE_LINK,
+
+    /**
+     * Inside the `[Reference]` of a plain `[Reference]`.
+     *
+     * While scanning, the `[Alias]` of `[Alias][Reference]` is indistinguishable from this until we
+     * reach its `]` and see whether another `[` follows, so it starts out in this part too and only
+     * then becomes [ALIAS_PART].
+     */
+    PLAIN_LINK,
+
+    /** Inside the `[Alias]` of an aliased `[Alias][Reference]`, so the displayed text. */
+    ALIAS_PART,
+
+    /** Inside the `[Reference]` of an aliased `[Alias][Reference]`, so where the link points to. */
+    REFERENCE_PART,
 }
 
-// TODO?
-private enum class CodeBlockState {
-    NONE,
-    INSIDE_CODE_BLOCK_OUTSIDE_REF,
-    INSIDE_CODE_BLOCK_INSIDE_REF,
+/**
+ * Matches a line up to a reference that directly follows a block tag,
+ * so the `@param ` of `@param [name]`.
+ *
+ * Up to two leading spaces are allowed, just like when splitting blocks in [splitPerBlock].
+ */
+private val BLOCK_TAG_BEFORE_REFERENCE_REGEX = Regex(""" {0,2}@[^\s{}\[\]]+\s*""")
+
+/**
+ * Whether the `[` at [index] opens a reference that directly follows a block tag,
+ * so the `[name]` of `@param [name]`.
+ *
+ * Inline tags, like the `{@include [Reference]}`, don't count, only block tags at the start of a line.
+ */
+private fun String.referenceAtIndexFollowsBlockTag(index: Int): Boolean {
+    val lineStart = maxOf(
+        lastIndexOf('\n', index - 1),
+        lastIndexOf('\r', index - 1),
+    ) + 1
+    return BLOCK_TAG_BEFORE_REFERENCE_REGEX matches substring(lineStart, index)
+}
+
+/**
+ * Replace KDoc aliases in doc content with the result of [process].
+ *
+ * Replaces all `[Alias][ReferenceLink]` with `[ProcessedAlias][ReferenceLink]`
+ * and all `[ReferenceLink]` with `[ProcessedReferenceLinkAsAlias][ReferenceLink]`.
+ *
+ * References directly following a block tag, like the `[name]` of `@param [name]`, are left as-is;
+ * they cannot be aliased and Dokka already renders them correctly.
+ *
+ * @param ignoreReferencesInCode when `true`, references inside code, so inside backticks, a fenced
+ *   code block, or a line indented by three spaces, are left as-is too. See [getCodeMask].
+ */
+fun DocContent.replaceKdocAliases(
+    ignoreReferencesInCode: Boolean = true,
+    process: (aliasOrReference: String) -> String,
+): DocContent {
+    val kdoc = this.value
+    val codeMask = if (ignoreReferencesInCode) this.getCodeMask() else null
+    var escapeNext = false
+    var linkPart = OUTSIDE_LINK
+    var insideCodeBlock = false
+
+    /** Whether the link we're currently reading directly follows a block tag, so `@param [name]`. */
+    var linkFollowsBlockTag = false
+
+    return buildString {
+        var currentBlock = ""
+
+        fun appendCurrentBlock() {
+            append(currentBlock)
+            currentBlock = ""
+        }
+
+        for ((i, char) in kdoc.withIndex()) {
+            fun nextChar(): Char? = kdoc.getOrNull(i + 1)
+
+            fun previousChar(): Char? = kdoc.getOrNull(i - 1)
+
+            if (escapeNext) {
+                escapeNext = false
+            } else {
+                when (char) {
+                    '\\' ->
+                        escapeNext = true
+
+                    '`' ->
+                        if (linkPart != OUTSIDE_LINK) {
+                            insideCodeBlock = !insideCodeBlock
+                        }
+
+                    '\n', '\r' ->
+                        linkPart = OUTSIDE_LINK
+
+                    '[' ->
+                        if (!insideCodeBlock && codeMask?.get(i) != true) {
+                            linkPart =
+                                if (previousChar() == ']') {
+                                    REFERENCE_PART
+                                } else {
+                                    PLAIN_LINK
+                                }
+                            linkFollowsBlockTag = kdoc.referenceAtIndexFollowsBlockTag(i)
+                            appendCurrentBlock()
+                        }
+
+                    ']' ->
+                        if (!insideCodeBlock && nextChar() == '[') {
+                            // what we just read turns out to be the `[Alias]` of `[Alias][Reference]`,
+                            // so process it right away; the `[Reference]` that follows is left alone
+                            if (linkPart == PLAIN_LINK) {
+                                linkPart = ALIAS_PART
+                            }
+                            currentBlock = processAlias(
+                                linkPart = linkPart,
+                                followsBlockTag = linkFollowsBlockTag,
+                                currentBlock = currentBlock,
+                                process = process,
+                            )
+                            appendCurrentBlock()
+                            linkPart = OUTSIDE_LINK
+                        } else if (!insideCodeBlock && nextChar() != '(') {
+                            currentBlock = processAlias(
+                                linkPart = linkPart,
+                                followsBlockTag = linkFollowsBlockTag,
+                                currentBlock = currentBlock,
+                                process = process,
+                            )
+                            appendCurrentBlock()
+                            linkPart = OUTSIDE_LINK
+                        }
+                }
+            }
+            currentBlock += char
+        }
+        appendCurrentBlock()
+    }.asDocContent()
+}
+
+private fun StringBuilder.processAlias(
+    linkPart: KdocLinkPart,
+    followsBlockTag: Boolean,
+    currentBlock: String,
+    process: (String) -> String,
+): String {
+    // a reference directly following a block tag, like the `[name]` of `@param [name]`,
+    // cannot be aliased, so it's left as-is
+    if (followsBlockTag) return currentBlock
+
+    var currentAliasBlock = currentBlock
+    when (linkPart) {
+        // `[Reference]` becomes `[ProcessedReference][Reference]`
+        PLAIN_LINK -> {
+            val originalAlias = currentAliasBlock.removePrefix("[")
+            val processedAlias = process(originalAlias)
+            append("[$processedAlias][$originalAlias")
+            currentAliasBlock = ""
+        }
+
+        // the `[Alias]` of `[Alias][Reference]` becomes `[ProcessedAlias]`
+        ALIAS_PART -> {
+            val originalAlias = currentAliasBlock.removePrefix("[")
+            val processedAlias = process(originalAlias)
+            append("[$processedAlias")
+            currentAliasBlock = ""
+        }
+
+        // the `[Reference]` of `[Alias][Reference]` holds no alias, so it's left as-is
+        OUTSIDE_LINK, REFERENCE_PART -> Unit
+    }
+    return currentAliasBlock
 }
 
 /**
@@ -244,10 +412,10 @@ private enum class CodeBlockState {
  * Replaces all `[Aliased][ReferenceLinks]` with `[Aliased][ProcessedPath]`
  * and all `[ReferenceLinks]` with `[ReferenceLinks][ProcessedPath]`.
  */
-fun DocContent.replaceKdocLinks(process: (String) -> String): DocContent {
+fun DocContent.replaceKdocReferenceLinks(process: (reference: String) -> String): DocContent {
     val kdoc = this.value
     var escapeNext = false
-    var referenceState = NONE
+    var linkPart = OUTSIDE_LINK
     var insideCodeBlock = false
 
     return buildString {
@@ -271,20 +439,20 @@ fun DocContent.replaceKdocLinks(process: (String) -> String): DocContent {
                         escapeNext = true
 
                     '`' ->
-                        if (referenceState != NONE) {
+                        if (linkPart != OUTSIDE_LINK) {
                             insideCodeBlock = !insideCodeBlock
                         }
 
                     '\n', '\r' ->
-                        referenceState = NONE
+                        linkPart = OUTSIDE_LINK
 
                     '[' ->
                         if (!insideCodeBlock) {
-                            referenceState =
+                            linkPart =
                                 if (previousChar() == ']') {
-                                    INSIDE_ALIASED_REFERENCE
+                                    REFERENCE_PART
                                 } else {
-                                    INSIDE_REFERENCE
+                                    PLAIN_LINK
                                 }
                             appendCurrentBlock()
                         }
@@ -292,12 +460,12 @@ fun DocContent.replaceKdocLinks(process: (String) -> String): DocContent {
                     ']' ->
                         if (!insideCodeBlock && nextChar() !in listOf('[', '(')) {
                             currentBlock = processReference(
-                                referenceState = referenceState,
+                                linkPart = linkPart,
                                 currentBlock = currentBlock,
                                 process = process,
                             )
                             appendCurrentBlock()
-                            referenceState = NONE
+                            linkPart = OUTSIDE_LINK
                         }
                 }
             }
@@ -329,13 +497,14 @@ private const val QUALIFIED_NAME = "(?:$IDENTIFIER)(?:\\.(?:$IDENTIFIER)+)*"
 private val QUALIFIED_NAME_REGEX = Regex(QUALIFIED_NAME)
 
 private fun StringBuilder.processReference(
-    referenceState: ReferenceState,
+    linkPart: KdocLinkPart,
     currentBlock: String,
     process: (String) -> String,
 ): String {
     var currentReferenceBlock = currentBlock
-    when (referenceState) {
-        INSIDE_REFERENCE -> {
+    when (linkPart) {
+        // `[Reference]` becomes `[Reference][ProcessedReference]`
+        PLAIN_LINK -> {
             val originalRef = currentReferenceBlock.removePrefix("[")
             if (originalRef matches QUALIFIED_NAME_REGEX) {
                 val processedRef = process(originalRef).fixReferenceIfInvalid()
@@ -348,7 +517,8 @@ private fun StringBuilder.processReference(
             }
         }
 
-        INSIDE_ALIASED_REFERENCE -> {
+        // the `[Reference]` of `[Alias][Reference]` becomes `[ProcessedReference]`
+        REFERENCE_PART -> {
             val originalRef = currentReferenceBlock.removePrefix("[")
             if (originalRef matches QUALIFIED_NAME_REGEX) {
                 val processedRef = process(originalRef).fixReferenceIfInvalid()
@@ -357,7 +527,8 @@ private fun StringBuilder.processReference(
             }
         }
 
-        NONE -> Unit
+        // the `[Alias]` of `[Alias][Reference]` holds no reference, so it's left as-is
+        OUTSIDE_LINK, ALIAS_PART -> Unit
     }
     return currentReferenceBlock
 }
@@ -370,5 +541,4 @@ private fun String.fixReference() =
     }
 
 /** Makes sure references are valid. */
-private fun String.fixReferenceIfInvalid() =
-    if (!isValidReference()) fixReference() else this
+private fun String.fixReferenceIfInvalid() = if (!isValidReference()) fixReference() else this
