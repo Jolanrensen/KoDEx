@@ -76,6 +76,7 @@ interface CommonKodexTaskProperties {
      *  [ARG_DOC_PROCESSOR],
      *  [SAMPLE_DOC_PROCESSOR],
      *  [EXPORT_AS_HTML_DOC_PROCESSOR],
+     *  [REFERENCE_CODE_SPAN_DOC_PROCESSOR],
      *  [REMOVE_ESCAPE_CHARS_PROCESSOR]]
      */
     @get:Input
