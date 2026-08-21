@@ -7,6 +7,7 @@ import nl.jolanrensen.kodex.defaultProcessors.EXPORT_AS_HTML_DOC_PROCESSOR
 import nl.jolanrensen.kodex.defaultProcessors.INCLUDE_DOC_PROCESSOR
 import nl.jolanrensen.kodex.defaultProcessors.INCLUDE_DOC_PROCESSOR_PRE_SORT
 import nl.jolanrensen.kodex.defaultProcessors.INCLUDE_FILE_DOC_PROCESSOR
+import nl.jolanrensen.kodex.defaultProcessors.REFERENCE_CODE_SPAN_DOC_PROCESSOR
 import nl.jolanrensen.kodex.defaultProcessors.REMOVE_ESCAPE_CHARS_PROCESSOR
 import nl.jolanrensen.kodex.defaultProcessors.SAMPLE_DOC_PROCESSOR
 import nl.jolanrensen.kodex.processor.DocProcessor
@@ -23,6 +24,7 @@ fun ClassLoader.getLoadedProcessors(): List<DocProcessor> {
             ARG_DOC_PROCESSOR,
             SAMPLE_DOC_PROCESSOR,
             EXPORT_AS_HTML_DOC_PROCESSOR,
+            REFERENCE_CODE_SPAN_DOC_PROCESSOR,
             REMOVE_ESCAPE_CHARS_PROCESSOR,
         ),
         arguments = mapOf(

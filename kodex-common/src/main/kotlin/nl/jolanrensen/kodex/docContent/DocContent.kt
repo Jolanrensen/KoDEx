@@ -282,9 +282,16 @@ private fun String.referenceAtIndexFollowsBlockTag(index: Int): Boolean {
  *
  * References directly following a block tag, like the `[name]` of `@param [name]`, are left as-is;
  * they cannot be aliased and Dokka already renders them correctly.
+ *
+ * @param ignoreReferencesInCode when `true`, references inside code, so inside backticks, a fenced
+ *   code block, or a line indented by three spaces, are left as-is too. See [getCodeMask].
  */
-fun DocContent.replaceKdocAliases(process: (aliasOrReference: String) -> String): DocContent {
+fun DocContent.replaceKdocAliases(
+    ignoreReferencesInCode: Boolean = true,
+    process: (aliasOrReference: String) -> String,
+): DocContent {
     val kdoc = this.value
+    val codeMask = if (ignoreReferencesInCode) this.getCodeMask() else null
     var escapeNext = false
     var linkPart = OUTSIDE_LINK
     var insideCodeBlock = false
@@ -321,7 +328,7 @@ fun DocContent.replaceKdocAliases(process: (aliasOrReference: String) -> String)
                         linkPart = OUTSIDE_LINK
 
                     '[' ->
-                        if (!insideCodeBlock) {
+                        if (!insideCodeBlock && codeMask?.get(i) != true) {
                             linkPart =
                                 if (previousChar() == ']') {
                                     REFERENCE_PART

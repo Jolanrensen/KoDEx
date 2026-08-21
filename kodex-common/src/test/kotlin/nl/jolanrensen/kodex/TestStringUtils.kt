@@ -110,11 +110,21 @@ class TestStringUtils {
             
               @see [Something]
             
-               @see [SomethingElse]
+               @see [shouldNotBeReplaced], this is code
             {@include [NotABlockTag]}
             Text before @param [notATagHere]
             This is a [**`special`**][grammar]
             This is a [__`special`__][grammar]
+            This is `code [shouldNotBeReplaced]` and `[this][alsoNot]`
+            ```kotlin
+            this [shouldNotBeReplaced]
+            [this][alsoNot]
+            ~~~
+            ```
+            ~~~~kotlin
+            [this][alsoNot]
+            ````````
+            ~~~~
         """.trimIndent().asDocContent()
 
         val res = someText.addCodeSpansToAliases()
@@ -127,11 +137,21 @@ class TestStringUtils {
             
               @see [Something]
             
-               @see [<code>SomethingElse</code>][SomethingElse]
+               @see [shouldNotBeReplaced], this is code
             {@include [<code>NotABlockTag</code>][NotABlockTag]}
             Text before @param [<code>notATagHere</code>][notATagHere]
             This is a [<code>**`special`**</code>][grammar]
             This is a [<code>__`special`__</code>][grammar]
+            This is `code [shouldNotBeReplaced]` and `[this][alsoNot]`
+            ```kotlin
+            this [shouldNotBeReplaced]
+            [this][alsoNot]
+            ~~~
+            ```
+            ~~~~kotlin
+            [this][alsoNot]
+            ````````
+            ~~~~
         """.trimIndent().asDocContent()
     }
 

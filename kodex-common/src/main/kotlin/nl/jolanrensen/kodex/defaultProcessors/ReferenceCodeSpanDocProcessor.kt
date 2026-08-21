@@ -34,11 +34,8 @@ class ReferenceCodeSpanDocProcessor : DocProcessor() {
 }
 
 internal fun DocContent.addCodeSpansToAliases(): DocContent =
-    replaceKdocAliases { aliasOrReference ->
-        if (aliasOrReference.startsWith('`') && aliasOrReference.endsWith('`')) {
-            aliasOrReference
-        } else {
-            aliasOrReference
-                .surroundWith("<code>", "</code>")
-        }
+    replaceKdocAliases(ignoreReferencesInCode = true) { aliasOrReference ->
+        aliasOrReference
+            .removeSurrounding("<code>", "</code>")
+            .surroundWith("<code>", "</code>")
     }
