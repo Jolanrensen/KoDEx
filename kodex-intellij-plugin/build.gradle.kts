@@ -61,7 +61,7 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-core:5.5.5")
 
     intellijPlatform {
-        intellijIdeaUltimate("262.8377.35")
+        intellijIdeaUltimate("262.10315.69")
         bundledPlugins(
             "org.jetbrains.kotlin",
             "com.intellij.java",

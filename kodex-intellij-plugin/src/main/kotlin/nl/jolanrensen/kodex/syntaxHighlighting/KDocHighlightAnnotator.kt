@@ -58,6 +58,6 @@ class KDocHighlightAnnotator :
         }
 
         val editor = element.findExistingEditor() ?: return
-        KDocHighlightListener.getInstance(editor).scheduleUpdateHighlighting()
+        KDocHighlightListener.getInstanceOrNull(editor)?.scheduleUpdateHighlighting()
     }
 }
