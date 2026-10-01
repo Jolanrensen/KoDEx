@@ -13,7 +13,6 @@ import com.intellij.platform.backend.documentation.InlineDocumentationProvider
 import com.intellij.psi.PsiDocCommentBase
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.PsiTreeUtil
-import java.util.concurrent.CancellationException
 import nl.jolanrensen.kodex.kodexInlineRenderingIsEnabled
 import nl.jolanrensen.kodex.services.DocProcessorService
 import nl.jolanrensen.kodex.utils.docComment
@@ -22,6 +21,7 @@ import org.jetbrains.kotlin.idea.k2.codeinsight.quickDoc.KotlinInlineDocumentati
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFile
+import java.util.concurrent.CancellationException
 
 /**
  * inline, used for rendering single doc comment in file, also works for multiple, Issue #54,
@@ -52,33 +52,28 @@ class DocProcessorInlineDocumentationProvider : InlineDocumentationProvider {
         val service = getService(file.project)
         if (!service.isEnabled || !kodexInlineRenderingIsEnabled) return emptyList()
 
-        try {
-            val result = mutableListOf<InlineDocumentation>()
-            PsiTreeUtil.processElements(file) {
-                val declaration = it as? KtDeclaration ?: return@processElements true
-                val originalComment = declaration.docComment ?: return@processElements true
-                val modified = runBlockingCancellable { service.getModifiedElement(declaration) }
+        val result = mutableListOf<InlineDocumentation>()
+        PsiTreeUtil.processElements(file) {
+            val declaration = it as? KtDeclaration ?: return@processElements true
+            val originalComment = declaration.docComment ?: return@processElements true
 
-                if (modified == null) return@processElements true
-
-                result += DocProcessorInlineDocumentation(
-                    originalDocumentation = originalComment,
-                    originalOwner = declaration,
-                    modifiedDocumentation = modified.docComment as KDoc,
-                )
-
-                true
+            // a single failing doc comment should not prevent the others from being rendered by KoDEx
+            val documentation = try {
+                createInlineDocumentation(service, declaration, originalComment)
+            } catch (e: ProcessCanceledException) {
+                throw e
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                e.printStackTrace()
+                null
             }
+            if (documentation != null) result += documentation
 
-            return result
-        } catch (e: ProcessCanceledException) {
-            throw e
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Throwable) {
-            e.printStackTrace()
-            return emptyList()
+            true
         }
+
+        return result
     }
 
     // the order for this one needs to be "first" XD
@@ -95,15 +90,7 @@ class DocProcessorInlineDocumentationProvider : InlineDocumentationProvider {
             if (comment.textRange != textRange) return null
 
             val declaration = comment.owner as? KtDeclaration ?: return null
-            val modified = runBlockingCancellable { service.getModifiedElement(declaration) }
-
-            if (modified == null) return null
-
-            return DocProcessorInlineDocumentation(
-                originalDocumentation = declaration.docComment as KDoc,
-                originalOwner = declaration,
-                modifiedDocumentation = modified.docComment as KDoc,
-            )
+            return createInlineDocumentation(service, declaration, comment)
         } catch (e: ProcessCanceledException) {
             throw e
         } catch (e: CancellationException) {
@@ -113,12 +100,32 @@ class DocProcessorInlineDocumentationProvider : InlineDocumentationProvider {
             return null
         }
     }
+
+    /**
+     * Returns `null` if KoDEx could not process the doc comment, meaning the original rendering should be used.
+     */
+    private fun createInlineDocumentation(
+        service: DocProcessorService,
+        declaration: KtDeclaration,
+        originalComment: PsiDocCommentBase,
+    ): DocProcessorInlineDocumentation? {
+        val modified = runBlockingCancellable {
+            service.getModifiedElement(declaration)
+        } ?: return null
+
+        return DocProcessorInlineDocumentation(
+            originalDocumentation = originalComment,
+            originalOwner = declaration,
+            // null if the processed doc comment is empty, in which case it was removed from the modified element
+            modifiedDocumentation = modified.docComment as KDoc?,
+        )
+    }
 }
 
 class DocProcessorInlineDocumentation(
     private val originalDocumentation: PsiDocCommentBase,
     private val originalOwner: KtDeclaration,
-    private val modifiedDocumentation: PsiDocCommentBase,
+    private val modifiedDocumentation: KDoc?,
 ) : InlineDocumentation {
 
     override fun getDocumentationRange(): TextRange = originalDocumentation.textRange
@@ -126,7 +133,7 @@ class DocProcessorInlineDocumentation(
     override fun getDocumentationOwnerRange(): TextRange? = originalOwner.textRange
 
     override fun renderText(): String? {
-        val docComment = modifiedDocumentation as? KDoc ?: return null
+        val docComment = modifiedDocumentation ?: return ""
         val result = buildString {
             renderKDoc(
                 contentTag = docComment.getDefaultSection(),
@@ -136,6 +143,5 @@ class DocProcessorInlineDocumentation(
         return JavaDocExternalFilter.filterInternalDocInfo(result)
     }
 
-    override fun getOwnerTarget(): DocumentationTarget =
-        createKotlinDocumentationTarget(originalOwner, originalOwner)
+    override fun getOwnerTarget(): DocumentationTarget = createKotlinDocumentationTarget(originalOwner, originalOwner)
 }
