@@ -10,6 +10,7 @@ import nl.jolanrensen.kodex.defaultProcessors.INCLUDE_FILE_DOC_PROCESSOR
 import nl.jolanrensen.kodex.defaultProcessors.REFERENCE_CODE_SPAN_DOC_PROCESSOR
 import nl.jolanrensen.kodex.defaultProcessors.REMOVE_ESCAPE_CHARS_PROCESSOR
 import nl.jolanrensen.kodex.defaultProcessors.SAMPLE_DOC_PROCESSOR
+import nl.jolanrensen.kodex.defaultProcessors.SAMPLE_DOC_PROCESSOR_THROW_WHEN_NOT_FOUND
 import nl.jolanrensen.kodex.processor.DocProcessor
 import nl.jolanrensen.kodex.processor.findProcessors
 
@@ -30,6 +31,7 @@ fun ClassLoader.getLoadedProcessors(): List<DocProcessor> {
         arguments = mapOf(
             ARG_DOC_PROCESSOR_LOG_NOT_FOUND to false,
             INCLUDE_DOC_PROCESSOR_PRE_SORT to false,
+            SAMPLE_DOC_PROCESSOR_THROW_WHEN_NOT_FOUND to false,
         ),
     )
 }

@@ -23,6 +23,12 @@ import org.apache.commons.text.StringEscapeUtils
 const val SAMPLE_DOC_PROCESSOR = "nl.jolanrensen.kodex.defaultProcessors.SampleDocProcessor"
 
 /**
+ * [Boolean] argument controlling whether to throw an exception when the argument is not found.
+ * Default is `true`. (`false` in the IntelliJ plugin).
+ */
+const val SAMPLE_DOC_PROCESSOR_THROW_WHEN_NOT_FOUND = "$SAMPLE_DOC_PROCESSOR.THROW_WHEN_NOT_FOUND"
+
+/**
  * Introduces @sample and @sampleNoComments tags.
  *
  * `@sample` will include the code of the target element in the docs entirely.
@@ -77,14 +83,17 @@ class SampleDocProcessor : TagDocProcessor() {
     private val sampleStartRegex = Regex(" *// *SampleStart *\n")
     private val sampleEndRegex = Regex(" *// *SampleEnd *\n")
 
+    private val shouldThrow by lazy { arguments[SAMPLE_DOC_PROCESSOR_THROW_WHEN_NOT_FOUND] as? Boolean ?: true }
+
     private fun processContent(tagWithContent: String, documentable: DocumentableWrapper): String {
         val unfilteredDocumentablesByPath by lazy { documentablesByPath.withoutFilters() }
         val noComments = tagWithContent.startsWith("{@$SAMPLE_NO_COMMENTS_TAG") ||
             tagWithContent.trimStart().startsWith("@$SAMPLE_NO_COMMENTS_TAG ")
+        val tag = if (noComments) SAMPLE_NO_COMMENTS_TAG else SAMPLE_TAG
 
         // get the full @sample / @sampleNoComments path
         val sampleArguments = tagWithContent.getTagArguments(
-            tag = if (noComments) SAMPLE_NO_COMMENTS_TAG else SAMPLE_TAG,
+            tag = tag,
             numberOfArguments = 2,
         )
 
@@ -92,6 +101,19 @@ class SampleDocProcessor : TagDocProcessor() {
 
         // for stuff written after the @sample tag, save and include it later
         val extraContent = sampleArguments.getOrElse(1) { "" }
+
+        fun String.withExtraContent() =
+            if (extraContent.isNotEmpty()) {
+                buildString {
+                    append(this@withExtraContent)
+                    if (!extraContent.first().isWhitespace()) {
+                        append(" ")
+                    }
+                    append(extraContent)
+                }
+            } else {
+                this
+            }
 
         val queries = documentable.getAllFullPathsFromHereForTargetPath(
             targetPath = samplePath,
@@ -101,7 +123,13 @@ class SampleDocProcessor : TagDocProcessor() {
         // query all documents for the sample path
         val targetDocumentable = queries.firstNotNullOfOrNull { query ->
             documentablesByPath.query(query, documentable)?.firstOrNull()
-        } ?: throwError(samplePath, queries)
+        } ?: run {
+            if (shouldThrow) {
+                throwError(samplePath, queries)
+            } else {
+                return "**!! \\@$tag ERROR: Reference not found: \\[$samplePath\\] !!**".withExtraContent()
+            }
+        }
 
         // get the source text of the target documentable, optionally trimming to between the
         // sampleStart and sampleEnd comments
@@ -118,17 +146,7 @@ class SampleDocProcessor : TagDocProcessor() {
         )
 
         // add extra content back if it existed
-        return if (extraContent.isNotEmpty()) {
-            buildString {
-                append(commentContent)
-                if (!extraContent.first().isWhitespace()) {
-                    append(" ")
-                }
-                append(extraContent)
-            }
-        } else {
-            commentContent
-        }
+        return commentContent.withExtraContent()
     }
 
     private fun throwError(samplePath: String, queries: List<String>): Nothing =
@@ -171,12 +189,14 @@ class SampleDocProcessor : TagDocProcessor() {
                 .findAll(this)
                 .first()
                 .range
-                .last + 1
+                .last
+                .plus(1)
             val end = sampleEndRegex
                 .findAll(this)
                 .last()
                 .range
-                .first - 1
+                .first
+                .minus(1)
             this.substring(start, end).trimIndent()
         } else {
             this
