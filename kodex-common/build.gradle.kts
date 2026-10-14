@@ -45,6 +45,7 @@ dependencies {
     // Use JUnit test framework for unit tests
     testImplementation(kotlin("test"))
     testImplementation("io.kotest:kotest-assertions-core:5.5.5")
+    testRuntimeOnly("org.slf4j:slf4j-simple:2.0.17")
 }
 
 tasks.shadowJar {
@@ -60,6 +61,11 @@ tasks.shadowJar {
 
 tasks.getByName<Test>("test") {
     useJUnitPlatform()
+
+    // jgrapht requires Java 11+ at runtime
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
 }
 
 tasks.withType<KotlinCompile> {
