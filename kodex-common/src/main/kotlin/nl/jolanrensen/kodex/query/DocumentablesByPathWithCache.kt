@@ -52,10 +52,10 @@ open class DocumentablesByPathWithCache(
     // single shared mutable instance per documentable for the current run.
     // This ensures that processors running before @include (like @comment removal) affect the content
     // that is @included in other docs, and that nested @includes are resolved in the included content.
-    private var instances: MutableMap<UUID, MutableDocumentableWrapper> = mutableMapOf()
+    private var mutableInstances: MutableMap<UUID, MutableDocumentableWrapper> = mutableMapOf()
 
-    private fun canonical(doc: DocumentableWrapper): MutableDocumentableWrapper =
-        instances.getOrPut(doc.identifier) { doc.toMutable() }
+    private fun DocumentableWrapper.getMutableInstance(): MutableDocumentableWrapper =
+        mutableInstances.getOrPut(identifier) { this.toMutable() }
 
     private fun isInDocsToProcess(identifier: UUID): Boolean =
         docsToProcess.values.any { docs -> docs.any { it.identifier == identifier } }
@@ -103,10 +103,10 @@ open class DocumentablesByPathWithCache(
      * returns whether it needs a rebuild
      */
     suspend fun updatePreProcessing(docToProcess: DocumentableWrapper): Boolean {
-        this.instances = mutableMapOf()
+        this.mutableInstances = mutableMapOf()
         this.queryCache = mutableMapOf()
 
-        val doc = canonical(docToProcess)
+        val doc = docToProcess.getMutableInstance()
         this.docToProcess = doc
         this.docsToProcess = doc.paths
             .associateWith { mutableListOf(doc) }
@@ -157,7 +157,7 @@ open class DocumentablesByPathWithCache(
         // up to date.
         var needsRebuild = false
         for (dependencyDoc in orderedList) {
-            val mutable = canonical(dependencyDoc)
+            val mutable = dependencyDoc.getMutableInstance()
 
             // put doc into process queue if it needs a rebuild
             if (needsRebuild(mutable)) {
@@ -174,7 +174,7 @@ open class DocumentablesByPathWithCache(
 
     /** retrieve a doc by identifier from queryCache or docsToProcess */
     override fun get(identifier: UUID): MutableDocumentableWrapper? =
-        instances[identifier]
+        mutableInstances[identifier]
             ?: super<MutableDocumentablesByPath>.get(identifier)
 
     override val needToQueryAllPaths: Boolean = false
@@ -187,15 +187,16 @@ open class DocumentablesByPathWithCache(
         val path = path.withoutBackticks()
         val key = Pair(queryContext.identifier, path)
         val cachedIds = queryCache[key]
-        val res = if (cachedIds != null) {
-            cachedIds.mapNotNull { instances[it] }
-        } else {
-            val found = queryNew(queryContext, path)
-                ?.map { canonical(it) }
-                ?: return null
-            queryCache[key] = found.map { it.identifier }
-            found
-        }.filter(queryFilter)
+        val res =
+            if (cachedIds != null) {
+                cachedIds.mapNotNull { mutableInstances[it] }
+            } else {
+                val found = queryNew(queryContext, path)
+                    ?.map { it.getMutableInstance() }
+                    ?: return null
+                queryCache[key] = found.map { it.identifier }
+                found
+            }.filter(queryFilter)
 
         // load cached results directly into queries.
         // Docs that are (re)processed in this run are shared instances and already contain the results of
