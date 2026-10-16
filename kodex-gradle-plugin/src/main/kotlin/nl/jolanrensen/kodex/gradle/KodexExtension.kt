@@ -73,6 +73,10 @@ abstract class KodexExtension
             )
             creator.inputSourceSet.set(sourceSet)
             creator.block()
+
+            // registered right away, so the task can be referenced (and configured) from build scripts,
+            // it's configured by KodexPlugin after the project is evaluated
+            creator.task = project.tasks.register(creator.taskName.get(), RunKodexTask::class.java)
             taskCreators.add(creator)
         }
     }

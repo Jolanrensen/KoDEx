@@ -92,11 +92,13 @@ abstract class RunKodexTask
         /**
          * Calculate the targets based on the [sources] and [target] folder.
          */
-        fun calculateTargets(): FileCollection {
-            val relativeSources = sources.get().map { it.relativeTo(baseDir.get()) }
-            val target = target.get()
-            return factory.fileCollection().from(relativeSources.map { File(target, it.path) })
-        }
+        fun calculateTargets(): FileCollection =
+            factory.fileCollection().from(sources.get().map { calculateTarget(it) })
+
+        /**
+         * Calculate where the given [source] folder will be placed based on the [target] folder.
+         */
+        fun calculateTarget(source: File): File = File(target.get(), source.relativeTo(baseDir.get()).path)
 
         /** Used by the task to execute [RunKodexGradleAction]. */
         @get:Inject

@@ -8,14 +8,19 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency.ARCHIVES_CONFIGURATION
 import org.gradle.api.artifacts.PublishArtifact
-import org.gradle.api.artifacts.type.ArtifactTypeDefinition.JAR_TYPE
+import org.gradle.api.attributes.Attribute
+import org.gradle.api.component.AdhocComponentWithVariants
+import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.plugins.BasePlugin
+import org.gradle.api.plugins.JavaPlugin
+import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.jvm.tasks.Jar
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.hasPlugin
 import org.gradle.kotlin.dsl.register
 import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptions
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinSingleTargetExtension
@@ -31,6 +36,8 @@ import org.jetbrains.kotlin.gradle.targets.js.ir.KLIB_TYPE
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTarget
 import org.jetbrains.kotlin.gradle.targets.js.ir.wasmDecamelizedDefaultNameOrNull
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
+import org.jetbrains.kotlin.gradle.tasks.BaseKotlinCompile
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
 
 /**
@@ -102,10 +109,11 @@ class KodexPlugin : Plugin<Project> {
         val sourceSetName = taskCreator.newSourceSetName.get()
         val taskName = taskCreator.taskName.get()
 
-        val task = tasks.createRunKodexTask(
-            name = taskName,
-            sources = inputSourceSet.kotlin.sourceDirectories,
-        ) {
+        val task = taskCreator.task.get().apply {
+            check(name == taskName) {
+                "The task name of KoDEx task '$name' cannot be changed after `kodex.preprocess()` is called."
+            }
+            sources.set(inputSourceSet.kotlin.sourceDirectories)
             group = "KoDEx"
             description = "Runs KoDEx $sourceSetName on the ${inputSourceSet.name} sources"
             contextualSources.set(
@@ -149,6 +157,12 @@ class KodexPlugin : Plugin<Project> {
         }
         val isSingleTarget = kotlinExtension is KotlinSingleTargetExtension<*>
 
+        // the original compilation of inputSourceSet per target
+        val originalCompilations = targetsOfInputSourceSet.associateWith { target ->
+            target.compilations.firstOrNull { it.defaultSourceSet == inputSourceSet }
+                ?: target.compilations.first { inputSourceSet in it.kotlinSourceSets }
+        }
+
         val compilationsOfKodexSourceSet = targetsOfInputSourceSet.associateWith { target ->
             val compilationName =
                 if (isSingleTarget) {
@@ -156,17 +170,26 @@ class KodexPlugin : Plugin<Project> {
                 } else {
                     "${sourceSetName}${target.name.replaceFirstChar { it.titlecase() }}"
                 }
+            val originalCompilation = originalCompilations[target]!!
 
             target.compilations.create(compilationName) {
-                // TODO test
                 // creates kodexSourceSet
                 it.defaultSourceSet {
                     kotlin.setSrcDirs(task.calculateTargets())
                     resources.setSrcDirs(inputSourceSet.resources.sourceDirectories)
                     inputSourceSet.copyDependenciesTo(this, this@createCompilationsSourceSetsAndJarTasks)
                 }
-                it.compileTaskProvider.get().dependsOn(task)
-                // TODO does it need more setup?
+                it.compileTaskProvider.configure { compileTask ->
+                    compileTask.dependsOn(task)
+                    // compile the KoDEx sources exactly like the original sources
+                    compileTask.copyCompilerOptionsFrom(originalCompilation.compileTaskProvider.get())
+                }
+            }.also { kodexCompilation ->
+                configureJavaSourceSetOfKodexCompilation(
+                    task = task,
+                    originalCompilation = originalCompilation,
+                    kodexCompilation = kodexCompilation,
+                )
             }
         }
 
@@ -186,26 +209,147 @@ class KodexPlugin : Plugin<Project> {
             }
 
             is KotlinSingleTargetExtension<*> -> {
-                val kodexSourceSet = compilationsOfKodexSourceSet[kotlinExtension.target]!!.defaultSourceSet
+                val target = kotlinExtension.target
+                val kodexCompilation = compilationsOfKodexSourceSet[target]!!
+                val originalCompilation = originalCompilations[target]!!
+                val kodexSourceSet = kodexCompilation.defaultSourceSet
 
-                if (taskCreator.generateJar.get()) {
+                val jar = if (taskCreator.generateJar.get()) {
                     createJarTaskSingleTarget(
                         kotlinExtension = kotlinExtension,
                         compilationsOfKodexSourceSet = compilationsOfKodexSourceSet,
+                        originalCompilation = originalCompilation,
                         sourceSetName = sourceSetName,
                         isMain = isMain,
                         kodexSourceSet = kodexSourceSet,
                     )
+                } else {
+                    null
                 }
-                if (taskCreator.generateSourcesJar.get()) {
+                val sourcesJar = if (taskCreator.generateSourcesJar.get()) {
                     createSourcesJarTaskSingleTarget(
                         sourceSetName = sourceSetName,
                         isMain = isMain,
                         kodexSourceSet = kodexSourceSet,
+                        kodexCompilation = kodexCompilation,
                         task = task,
                     )
+                } else {
+                    null
+                }
+
+                if (taskCreator.addJarsToAssemble.get()) {
+                    tasks.named(BasePlugin.ASSEMBLE_TASK_NAME) {
+                        if (jar != null) it.dependsOn(jar)
+                        if (sourcesJar != null) it.dependsOn(sourcesJar)
+                    }
+                }
+
+                if (taskCreator.replaceArtifactsInJavaComponent.get()) {
+                    check(isMain && (target is KotlinJvmTarget || target is KotlinWithJavaTarget<*, *>)) {
+                        "`replaceArtifactsInJavaComponent` is only supported for the main source set of a JVM project."
+                    }
+                    // Run as late as possible, as some plugins only call `java.withSourcesJar()` in `afterEvaluate {}`
+                    gradle.projectsEvaluated {
+                        replaceArtifactsInJavaComponent(
+                            originalCompilation = originalCompilation,
+                            jar = jar,
+                            sourcesJar = sourcesJar,
+                        )
+                    }
                 }
             }
+        }
+    }
+
+    /**
+     * The Java source set of [kodexCompilation] (if it exists) gets the same source directories as the
+     * Java source set of [originalCompilation], but with any directory processed by KoDEx
+     * replaced by its processed counterpart.
+     * This makes sure Java sources are compiled too.
+     */
+    private fun Project.configureJavaSourceSetOfKodexCompilation(
+        task: RunKodexTask,
+        originalCompilation: KotlinCompilation<*>,
+        kodexCompilation: KotlinCompilation<*>,
+    ) {
+        val javaSourceSets = extensions.findByType(SourceSetContainer::class.java) ?: return
+        val originalJavaSourceSet = javaSourceSets.findByName(originalCompilation.name) ?: return
+        val kodexJavaSourceSet = javaSourceSets.findByName(kodexCompilation.name) ?: return
+
+        val processedSources = task.sources.get().map { it.absoluteFile }.toSet()
+        kodexJavaSourceSet.java.setSrcDirs(
+            originalJavaSourceSet.java.srcDirs.map {
+                if (it.absoluteFile in processedSources) task.calculateTarget(it) else it
+            },
+        )
+        tasks.named(kodexJavaSourceSet.compileJavaTaskName) { it.dependsOn(task) }
+    }
+
+    /**
+     * Replaces the jar and sources jar variants of the `java` component with variants containing the
+     * KoDEx-processed [jar] and [sourcesJar].
+     * The attributes, dependencies, and capabilities of the original variants are kept.
+     *
+     * The new configurations are not consumable, so they are only used for publishing.
+     */
+    private fun Project.replaceArtifactsInJavaComponent(
+        originalCompilation: KotlinCompilation<*>,
+        jar: TaskProvider<Jar>?,
+        sourcesJar: TaskProvider<Jar>?,
+    ) {
+        val component = components.findByName("java") as? AdhocComponentWithVariants
+        if (component == null) {
+            logger.warn("KoDEx: Could not find the 'java' component in $path, its artifacts will not be replaced.")
+            return
+        }
+
+        fun replaceVariant(originalConfigurationName: String, artifactTask: TaskProvider<Jar>, classifier: String?) {
+            val original = configurations.findByName(originalConfigurationName) ?: return
+            val replacement = configurations.maybeCreate(
+                "kodex${originalConfigurationName.replaceFirstChar { it.titlecase() }}",
+            ) {
+                description = "KoDEx-processed version of '$originalConfigurationName', used for publishing."
+                isCanBeConsumed = false
+                isCanBeResolved = false
+                extendsFrom(*original.extendsFrom.toTypedArray())
+                for (key in original.attributes.keySet()) {
+                    @Suppress("UNCHECKED_CAST")
+                    attributes.attributeProvider(
+                        key as Attribute<Any>,
+                        provider { original.attributes.getAttribute(key)!! },
+                    )
+                }
+                original.outgoing.capabilities.forEach { outgoing.capability(it) }
+                outgoing.artifact(artifactTask) {
+                    it.builtBy(artifactTask)
+                    // publish with the same classifier as the original artifact
+                    it.classifier = classifier
+                }
+            }
+
+            component.withVariantsFromConfiguration(original) { it.skip() }
+            component.addVariantsFromConfiguration(replacement) {
+                // same mapping as the `java` component does
+                when (originalConfigurationName) {
+                    JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME -> it.mapToMavenScope("compile")
+                    JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME -> it.mapToMavenScope("runtime")
+                    else -> it.mapToOptional()
+                }
+            }
+            logger.info("KoDEx: Replaced variant '$originalConfigurationName' of the 'java' component in $path.")
+        }
+
+        if (jar != null) {
+            replaceVariant(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, jar, null)
+            replaceVariant(JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME, jar, null)
+        }
+        if (sourcesJar != null) {
+            val sourcesElementsName = extensions.findByType(SourceSetContainer::class.java)
+                ?.findByName(originalCompilation.name)
+                ?.sourcesElementsConfigurationName
+                ?: "sourcesElements"
+            replaceVariant(sourcesElementsName, sourcesJar, "sources")
         }
     }
 
@@ -218,9 +362,13 @@ class KodexPlugin : Plugin<Project> {
         sourceSetName: String,
         isMain: Boolean,
         kodexSourceSet: KotlinSourceSet,
+        kodexCompilation: KotlinCompilation<*>,
         task: RunKodexTask,
-    ) {
-        val sourcesJar = tasks.register<Jar>(
+    ): TaskProvider<Jar> {
+        val kodexJavaSourceSet = extensions.findByType(SourceSetContainer::class.java)
+            ?.findByName(kodexCompilation.name)
+
+        return tasks.register<Jar>(
             name = buildString {
                 append("kodex")
                 append(sourceSetName.replaceFirstChar { it.titlecase() })
@@ -237,37 +385,50 @@ class KodexPlugin : Plugin<Project> {
             } else {
                 archiveClassifier.set("kodex-${sourceSetName.decamelize()}-sources")
             }
+            // like the normal sources jar, which contains `allSource`: Kotlin and Java sources plus resources
             from(kodexSourceSet.kotlin)
+            kodexJavaSourceSet?.let { from(it.allSource) }
+            from(kodexSourceSet.resources)
+            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
             dependsOn(task)
         }
-        tasks.filter {
-            it.name != sourcesJar.name && "sourcesjar" in it.name.lowercase()
-        }.forEach { it.dependsOn(sourcesJar) }
     }
 
     private fun Project.createJarTaskSingleTarget(
         kotlinExtension: KotlinSingleTargetExtension<*>,
         compilationsOfKodexSourceSet: Map<KotlinTarget, KotlinCompilation<*>>,
+        originalCompilation: KotlinCompilation<*>,
         sourceSetName: String,
         isMain: Boolean,
         kodexSourceSet: KotlinSourceSet,
-    ) {
+    ): TaskProvider<Jar> {
         val target = kotlinExtension.target
         val compilation = compilationsOfKodexSourceSet[target]
             ?: error("Compilation of $target not found, we only have: $compilationsOfKodexSourceSet")
 
-        when (target) {
+        return when (target) {
             is KotlinWithJavaTarget<*, *>, is KotlinJvmTarget -> {
-                val jar = target.createArtifactsTask(sourceSetName, isMain) {
-                    from(compilation.output.allOutputs)
+                val originalJavaSourceSet = extensions.findByType(SourceSetContainer::class.java)
+                    ?.findByName(originalCompilation.name)
+                val originalJar = if (isMain) tasks.findByName(target.artifactsTaskName) as? Jar else null
+
+                target.createArtifactsTask(sourceSetName, isMain) {
+                    // the classes compiled from the KoDEx-processed sources
+                    from(compilation.output.classesDirs)
                     dependsOn(compilation.compileTaskProvider)
+
+                    if (originalJavaSourceSet != null) {
+                        // the resources as processed for the original sources,
+                        // keeping any modifications made to the original processResources task
+                        from(tasks.named(originalJavaSourceSet.processResourcesTaskName))
+                    } else {
+                        from(compilation.output.resourcesDir)
+                        dependsOn(compilation.output.allOutputs)
+                    }
+
+                    // keep the same manifest as the original jar
+                    if (originalJar != null) manifest.from(originalJar.manifest)
                 }
-                target.createPublishArtifact(
-                    artifactTask = jar,
-                    artifactType = JAR_TYPE,
-                    configurations[kodexSourceSet.apiConfigurationName],
-                    configurations.findByName(kodexSourceSet.runtimeOnlyConfigurationName),
-                )
             }
 
             is KotlinJsIrTarget -> { // TODO test
@@ -292,6 +453,7 @@ class KodexPlugin : Plugin<Project> {
                     configurations[kodexSourceSet.apiConfigurationName],
                     configurations.findByName(kodexSourceSet.runtimeOnlyConfigurationName),
                 )
+                jsKlibTask
             }
 
             is KotlinNativeTarget ->
@@ -367,6 +529,37 @@ val KotlinProjectExtension.targets: Iterable<KotlinTarget>
         is KotlinMultiplatformExtension -> targets
         else -> error("Unexpected 'kotlin' extension $this")
     }
+
+/**
+ * Copies the compiler options of the [original] compilation task to this task, so that
+ * a KoDEx-processed source set is compiled exactly like the original source set.
+ *
+ * Notably, this copies the `moduleName`, so that the names of `internal` declarations
+ * (and the `.kotlin_module` file) stay the same as in the original compilation.
+ */
+internal fun KotlinCompilationTask<*>.copyCompilerOptionsFrom(original: KotlinCompilationTask<*>) {
+    val from = original.compilerOptions
+    val to = compilerOptions
+
+    to.freeCompilerArgs.set(from.freeCompilerArgs)
+    to.optIn.set(from.optIn)
+    to.languageVersion.set(from.languageVersion)
+    to.apiVersion.set(from.apiVersion)
+    to.progressiveMode.set(from.progressiveMode)
+    to.allWarningsAsErrors.set(from.allWarningsAsErrors)
+    to.suppressWarnings.set(from.suppressWarnings)
+
+    if (from is KotlinJvmCompilerOptions && to is KotlinJvmCompilerOptions) {
+        to.moduleName.set(from.moduleName)
+        to.jvmTarget.set(from.jvmTarget)
+        to.javaParameters.set(from.javaParameters)
+        to.noJdk.set(from.noJdk)
+    }
+
+    if (this is BaseKotlinCompile && original is BaseKotlinCompile) {
+        friendPaths.from(original.friendPaths)
+    }
+}
 
 fun KotlinSourceSet.copyDependenciesTo(other: KotlinSourceSet, project: Project) {
     val configurations = listOf(

@@ -191,7 +191,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
      * @param processors Processors to be used
      * @param additionals [Additional files][AdditionalFile] to be created in the project that are
      *   processed but not returned
-     * @return The processed content of [content]
+     * @return The processed content of [content], or `null` if the file was excluded from the output
      */
     @kotlin.jvm.Throws(IOException::class)
     fun processContent(
@@ -205,7 +205,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
         contextualSourceSets: List<String> = emptyList(),
         buildScan: Boolean = false,
         preprocessTests: Boolean = false,
-    ): String {
+    ): String? {
         initializeProjectFiles(
             processors = processors,
             plugins = plugins,
@@ -227,7 +227,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
         runBuild(buildScan)
 
         val destinationFile = File(destinationDirectory, fileNameWithExtension)
-        return destinationFile.readText()
+        return if (destinationFile.exists()) destinationFile.readText() else null
     }
 
     /**

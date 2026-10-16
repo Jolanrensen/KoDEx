@@ -44,6 +44,13 @@ import kotlin.time.measureTimedValue
 private val log = KotlinLogging.logger("KoDEx")
 
 /**
+ * Matches a single (non-static, non-star) import statement on its own line, including the line break.
+ * Group 1 is the imported path.
+ */
+private val importRegex =
+    Regex("""^[ \t]*import[ \t]+([\w.`]+)(?:[ \t]+as[ \t]+[\w`]+)?[ \t]*;?[ \t]*(?:\n|$)""", RegexOption.MULTILINE)
+
+/**
  * Process docs action.
  *
  * When [process] is executed, it will:
@@ -174,6 +181,11 @@ abstract class RunKodexAction {
 
         val documentablesToExcludeFromSourcesPerFile = getDocumentablesToExcludePerFile(modifiedDocumentables)
 
+        val pathsExcludedFromSources = getPathsExcludedFromSources(
+            sourceDocs = modifiedDocumentables,
+            documentablesToExcludePerFile = documentablesToExcludeFromSourcesPerFile,
+        )
+
         log.info {
             "Modified documentables: ${
                 modifiedDocumentablesPerFile.values.flatMap {
@@ -183,7 +195,11 @@ abstract class RunKodexAction {
         }
 
         // copy the sources to the target folder while replacing all docs in modified documentables
-        copyAndModifySources(modifiedDocumentablesPerFile, documentablesToExcludeFromSourcesPerFile)
+        copyAndModifySources(
+            modifiedDocumentablesPerFile = modifiedDocumentablesPerFile,
+            documentablesToExcludeFromPerFile = documentablesToExcludeFromSourcesPerFile,
+            pathsExcludedFromSources = pathsExcludedFromSources,
+        )
 
         // export htmls
         exportHtmls(modifiedDocumentables.values.flatten())
@@ -366,16 +382,59 @@ abstract class RunKodexAction {
             }.groupBy { it.file }
 
     /**
+     * Returns the fully qualified paths of all documentables that are removed from the sources by
+     * [ExcludeFromSources], either directly or by being in a file annotated with `@file:ExcludeFromSources`.
+     *
+     * Paths that are still used by documentables that stay in the sources (like overloads) are not included.
+     * This is used to remove imports of these documentables in [copyAndModifySources], so the
+     * processed sources can still be compiled.
+     */
+    private fun getPathsExcludedFromSources(
+        sourceDocs: Map<String, List<DocumentableWrapper>>,
+        documentablesToExcludePerFile: Map<File, List<DocumentableWrapper>>,
+    ): Set<String> {
+        val idsToExclude = documentablesToExcludePerFile.values.flatten().map { it.identifier }.toSet()
+        val fileIsExcluded = mutableMapOf<File, Boolean>()
+
+        val (excluded, kept) = sourceDocs.values.flatten().partition {
+            it.identifier in idsToExclude ||
+                fileIsExcluded.getOrPut(it.file) { it.file.isFile && it.file.containsExcludeFromSources() }
+        }
+
+        fun DocumentableWrapper.paths() = listOfNotNull(fullyQualifiedPath, fullyQualifiedExtensionPath)
+        val keptPaths = kept.flatMap { it.paths() }.toSet()
+        return excluded.flatMap { it.paths() }.filterTo(mutableSetOf()) { it !in keptPaths }
+    }
+
+    /**
+     * Removes the import statements from [fileContent] that import any of the [pathsExcludedFromSources],
+     * or their members.
+     */
+    private fun removeImportsOfExcludedPaths(fileContent: String, pathsExcludedFromSources: Set<String>): String {
+        if (pathsExcludedFromSources.isEmpty()) return fileContent
+        return fileContent.replace(importRegex) { match ->
+            val importPath = match.groupValues[1].replace("`", "")
+            val segments = importPath.split('.')
+            val isExcluded = (segments.size downTo 1).any {
+                segments.subList(0, it).joinToString(".") in pathsExcludedFromSources
+            }
+            if (isExcluded) "" else match.value
+        }
+    }
+
+    /**
      * Enables `@file:ExcludeFromSources` annotation to work.
      */
     private fun File.containsExcludeFromSources(): Boolean {
-        for (line in bufferedReader().lines()) {
-            val trimmed = line.trim()
-            when {
-                trimmed.startsWith("package") -> return false
-                trimmed.startsWith("import") -> return false
-                trimmed.contains("@file:${ExcludeFromSources::class.simpleName}") -> return true
-                trimmed.matches("@file:\\[.*${ExcludeFromSources::class.simpleName}.*]".toRegex()) -> return true
+        bufferedReader().use { reader ->
+            for (line in reader.lines()) {
+                val trimmed = line.trim()
+                when {
+                    trimmed.startsWith("package") -> return false
+                    trimmed.startsWith("import") -> return false
+                    trimmed.contains("@file:${ExcludeFromSources::class.simpleName}") -> return true
+                    trimmed.matches("@file:\\[.*${ExcludeFromSources::class.simpleName}.*]".toRegex()) -> return true
+                }
             }
         }
         return false
@@ -385,6 +444,7 @@ abstract class RunKodexAction {
     private fun copyAndModifySources(
         modifiedDocumentablesPerFile: Map<File, List<DocumentableWrapper>>,
         documentablesToExcludeFromPerFile: Map<File, List<DocumentableWrapper>>,
+        pathsExcludedFromSources: Set<String>,
     ) {
         for (source in parameters.sources.sourceRoots) {
             for (file in source.walkTopDown()) {
@@ -438,9 +498,17 @@ abstract class RunKodexAction {
                         fileTextRange.toIntRange() to ""
                     }
 
-                val processedFileContent = fileContent.replaceNonOverlappingRanges(
-                    *(docModificationsByRange + exclusionModificationsByRange).toTypedArray(),
-                )
+                val processedFileContent = fileContent
+                    .replaceNonOverlappingRanges(
+                        *(docModificationsByRange + exclusionModificationsByRange).toTypedArray(),
+                    ).let {
+                        // the excluded documentables no longer exist, so their imports need to be removed as well
+                        if (file.extension == "kt" || file.extension == "java") {
+                            removeImportsOfExcludedPaths(it, pathsExcludedFromSources)
+                        } else {
+                            it
+                        }
+                    }
 
                 try {
                     targetFile.apply {
