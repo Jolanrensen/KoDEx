@@ -401,14 +401,15 @@ abstract class RunKodexAction {
                 fileIsExcluded.getOrPut(it.file) { it.file.isFile && it.file.containsExcludeFromSources() }
         }
 
-        fun DocumentableWrapper.paths() = listOfNotNull(fullyQualifiedPath, fullyQualifiedExtensionPath)
-        val keptPaths = kept.flatMap { it.paths() }.toSet()
-        return excluded.flatMap { it.paths() }.filterTo(mutableSetOf()) { it !in keptPaths }
+        val keptPaths = kept.flatMap { it.paths }.toSet()
+        return excluded.flatMap { it.paths }.filterTo(mutableSetOf()) { it !in keptPaths }
     }
 
     /**
      * Removes the import statements from [fileContent] that import any of the [pathsExcludedFromSources],
      * or their members.
+     *
+     * Before, this required KtLint format
      */
     private fun removeImportsOfExcludedPaths(fileContent: String, pathsExcludedFromSources: Set<String>): String {
         if (pathsExcludedFromSources.isEmpty()) return fileContent

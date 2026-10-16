@@ -227,7 +227,9 @@ abstract class DocProcessorFunctionalTest(name: String) {
         runBuild(buildScan)
 
         val destinationFile = File(destinationDirectory, fileNameWithExtension)
-        return if (destinationFile.exists()) destinationFile.readText() else null
+        return destinationFile
+            .takeIf { it.exists() }
+            ?.readText()
     }
 
     /**
