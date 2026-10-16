@@ -105,24 +105,14 @@ class KodexPlugin : Plugin<Project> {
         kotlinExtension: KotlinProjectExtension,
     ): RunKodexTask {
         val inputSourceSet = taskCreator.inputSourceSet.get()
-        val contextualSourceSets = taskCreator.contextualSourceSets.get()
         val sourceSetName = taskCreator.newSourceSetName.get()
         val taskName = taskCreator.taskName.get()
 
-        val task = taskCreator.task.get().apply {
-            check(name == taskName) {
-                "The task name of KoDEx task '$name' cannot be changed after `kodex.preprocess()` is called."
-            }
-            sources.set(inputSourceSet.kotlin.sourceDirectories)
-            group = "KoDEx"
-            description = "Runs KoDEx $sourceSetName on the ${inputSourceSet.name} sources"
-            contextualSources.set(
-                contextualSourceSets.map { it.kotlin.sourceDirectories.toList() },
-            )
-            applyPropertiesFrom(taskCreator)
-            taskCreator.runOnTask.get().forEach {
-                it.execute(this)
-            }
+        // realizes the task: first the KoDEx defaults are applied (see KodexExtension.preprocess),
+        // then any user configuration actions, like `tasks.named<RunKodexTask>(...) { }`
+        val task = taskCreator.task.get()
+        check(task.name == taskName) {
+            "The task name of KoDEx task '${task.name}' cannot be changed after `kodex.preprocess()` is called."
         }
 
         createCompilationsSourceSetsAndJarTasks(

@@ -206,8 +206,9 @@ abstract class KodexSourceSetTaskBuilder
         fun replaceArtifactsInJavaComponent(boolean: Boolean): Unit = replaceArtifactsInJavaComponent.set(boolean)
 
         /**
-         * The [RunKodexTask] registered for this source set. Registered as soon as [KodexExtension.preprocess] is called,
-         * but configured after the project is evaluated.
+         * The [RunKodexTask] registered for this source set. Registered as soon as [KodexExtension.preprocess] is called.
+         * The properties of this builder are applied to it in its registration action, so they act as defaults
+         * that can be overridden by configuring the task from the build script.
          */
         @get:Internal
         internal lateinit var task: TaskProvider<RunKodexTask>
