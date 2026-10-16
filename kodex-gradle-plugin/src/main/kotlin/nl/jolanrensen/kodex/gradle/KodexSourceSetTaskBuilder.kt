@@ -188,8 +188,17 @@ abstract class KodexSourceSetTaskBuilder
          * Only works for the main source set of a single-target JVM project.
          *
          * Defaults to false.
-         */
-        @get:Input
+         *
+        * __WARNING: This is a delicate API that might change or break in the future.__
+     * It modifies the `java` component in a `gradle.projectsEvaluated {}` callback, by skipping its
+     * `apiElements`, `runtimeElements`, and `sourcesElements` variants and adding (non-consumable) copies
+     * of them with the KoDEx artifacts. This relies on Gradle and Kotlin Gradle Plugin internals and
+     * on the publication using `from(components["java"])`; it may stop working with future versions
+     * of Gradle, KGP, or publishing plugins, or its behavior (like the names of the published variants)
+     * may change.
+     * If more control is needed, consider using the jar tasks created by KoDEx
+     * (`kodex<NewSourceSetName>Jar` and `kodex<NewSourceSetName>SourcesJar`) directly in your publication.
+     */@get:Input
         val replaceArtifactsInJavaComponent: Property<Boolean> = factory.property<Boolean>()
             .convention(false)
 

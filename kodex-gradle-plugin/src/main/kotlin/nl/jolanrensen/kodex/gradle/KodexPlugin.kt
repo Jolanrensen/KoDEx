@@ -292,6 +292,9 @@ class KodexPlugin : Plugin<Project> {
      * The attributes, dependencies, and capabilities of the original variants are kept.
      *
      * The new configurations are not consumable, so they are only used for publishing.
+     *
+     * NOTE: Delicate API, see [KodexSourceSetTaskBuilder.replaceArtifactsInJavaComponent].
+     * This relies on how Gradle builds the `java` component and may break in the future.
      */
     private fun Project.replaceArtifactsInJavaComponent(
         originalCompilation: KotlinCompilation<*>,
