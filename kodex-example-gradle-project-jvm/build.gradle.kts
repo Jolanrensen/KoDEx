@@ -4,7 +4,7 @@ plugins {
     kotlin("jvm") // version "2.2.21"
 
     // adding the Gradle plugin
-    id("nl.jolanrensen.kodex") version "0.6.0"
+    id("nl.jolanrensen.kodex") version "0.6.4"
 }
 
 group = "nl.jolanrensen.example"

@@ -73,6 +73,33 @@ abstract class KodexExtension
             )
             creator.inputSourceSet.set(sourceSet)
             creator.block()
+
+            // registered right away, so the task can be referenced (and configured) from build scripts.
+            // The defaults from `creator` are applied (lazily) in the registration action, so they are applied
+            // before any user `tasks.named(...) { }` actions, which can thus override them.
+            // The rest of the wiring is done by KodexPlugin after the project is evaluated.
+            creator.task = project.tasks.register(creator.taskName.get(), RunKodexTask::class.java) {
+                it.configureFrom(creator)
+            }
             taskCreators.add(creator)
+        }
+
+        private fun RunKodexTask.configureFrom(creator: KodexSourceSetTaskBuilder) {
+            val inputSourceSet = creator.inputSourceSet
+            group = "KoDEx"
+            description =
+                "Runs KoDEx ${creator.newSourceSetName.get()} on the ${inputSourceSet.get().name} sources"
+            sources.set(
+                project.provider { inputSourceSet.get().kotlin.sourceDirectories.toList() },
+            )
+            contextualSources.set(
+                creator.contextualSourceSets.map { sourceSets ->
+                    sourceSets.map { it.kotlin.sourceDirectories.toList() }
+                },
+            )
+            applyPropertiesFrom(creator)
+            creator.runOnTask.get().forEach {
+                it.execute(this)
+            }
         }
     }

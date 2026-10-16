@@ -96,6 +96,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
         plugins: List<String>,
         contextualSourceSets: List<String>,
         preprocessTests: Boolean,
+        extraBuildScript: String,
     ): String =
         """
         import nl.jolanrensen.kodex.gradle.*
@@ -158,7 +159,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
                 languageVersion.set(JavaLanguageVersion.of(8))
             }
         }
-        """.trimIndent()
+        """.trimIndent() + "\n" + extraBuildScript
 
     protected val projectDirectory = File("build/$name")
     protected val outputDirectory = File(projectDirectory, "build/kodex/mainKodex")
@@ -191,7 +192,8 @@ abstract class DocProcessorFunctionalTest(name: String) {
      * @param processors Processors to be used
      * @param additionals [Additional files][AdditionalFile] to be created in the project that are
      *   processed but not returned
-     * @return The processed content of [content]
+     * @param extraBuildScript Extra code appended to the end of the `build.gradle.kts` file
+     * @return The processed content of [content], or `null` if the file was excluded from the output
      */
     @kotlin.jvm.Throws(IOException::class)
     fun processContent(
@@ -205,12 +207,14 @@ abstract class DocProcessorFunctionalTest(name: String) {
         contextualSourceSets: List<String> = emptyList(),
         buildScan: Boolean = false,
         preprocessTests: Boolean = false,
-    ): String {
+        extraBuildScript: String = "",
+    ): String? {
         initializeProjectFiles(
             processors = processors,
             plugins = plugins,
             contextualSourceSets = contextualSourceSets,
             preprocessTests = preprocessTests,
+            extraBuildScript = extraBuildScript,
         )
         writeAdditionalFiles(additionals)
 
@@ -227,7 +231,9 @@ abstract class DocProcessorFunctionalTest(name: String) {
         runBuild(buildScan)
 
         val destinationFile = File(destinationDirectory, fileNameWithExtension)
-        return destinationFile.readText()
+        return destinationFile
+            .takeIf { it.exists() }
+            ?.readText()
     }
 
     /**
@@ -238,6 +244,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
         plugins: List<String> = emptyList(),
         contextualSourceSets: List<String>,
         preprocessTests: Boolean,
+        extraBuildScript: String,
     ) {
         // Set up the test build
         projectDirectory.deleteRecursively()
@@ -250,7 +257,7 @@ abstract class DocProcessorFunctionalTest(name: String) {
             .write(propertiesFile)
 
         File(projectDirectory, "build.gradle.kts")
-            .write(getBuildFileContent(processors, plugins, contextualSourceSets, preprocessTests))
+            .write(getBuildFileContent(processors, plugins, contextualSourceSets, preprocessTests, extraBuildScript))
     }
 
     /**
