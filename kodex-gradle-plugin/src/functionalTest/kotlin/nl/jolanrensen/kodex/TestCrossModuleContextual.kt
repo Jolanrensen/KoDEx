@@ -3,9 +3,9 @@ package nl.jolanrensen.kodex
 import io.kotest.matchers.shouldBe
 import org.gradle.testkit.runner.GradleRunner
 import org.intellij.lang.annotations.Language
+import org.junit.Test
 import java.io.File
 import java.io.FileWriter
-import org.junit.Test
 
 /**
  * Verifies that a source set from another Gradle module can be used as a contextual source set via
@@ -36,17 +36,18 @@ class TestCrossModuleContextual {
     """.trimIndent()
 
     @Language("kts")
-    private fun buildFile(contextualBlock: String) = """
+    private fun buildFile(contextualBlock: String) =
+        """
         import nl.jolanrensen.kodex.gradle.*
         import nl.jolanrensen.kodex.defaultProcessors.*
-
+        
         plugins {
             kotlin("jvm") version "2.2.10"
             id("nl.jolanrensen.kodex") version "$VERSION"
         }
-
+        
         repositories { mavenLocal(); mavenCentral() }
-
+        
         kodex {
             preprocess(kotlin.sourceSets.main) {
                 processors = listOf(INCLUDE_DOC_PROCESSOR, REMOVE_ESCAPE_CHARS_PROCESSOR)
@@ -55,20 +56,20 @@ class TestCrossModuleContextual {
                 $contextualBlock
             }
         }
-
+        
         tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
             compilerOptions.jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
         }
         java { toolchain { languageVersion.set(JavaLanguageVersion.of(8)) } }
-    """.trimIndent()
+        """.trimIndent()
 
     @Language("kt")
     private val producerContent = """
         package com.example.producer
-
+        
         /** ! */
         interface A
-
+        
         /**
          * Hello World{@include [A]}
          */
@@ -78,7 +79,7 @@ class TestCrossModuleContextual {
     @Language("kt")
     private val consumerContent = """
         package com.example.consumer
-
+        
         /**
          * @include [com.example.producer.helloWorld]
          */
@@ -88,7 +89,7 @@ class TestCrossModuleContextual {
     @Language("kt")
     private val expectedConsumerOutput = """
         package com.example.consumer
-
+        
         /**
          * Hello World!
          */
@@ -130,18 +131,19 @@ class TestCrossModuleContextual {
     }
 
     @Language("kts")
-    private val buildFileWithoutKodex = """
+    private val buildFileWithoutKodex =
+        """
         plugins {
             kotlin("jvm") version "2.2.10"
         }
-
+        
         repositories { mavenLocal(); mavenCentral() }
-
+        
         tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
             compilerOptions.jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
         }
         java { toolchain { languageVersion.set(JavaLanguageVersion.of(8)) } }
-    """.trimIndent()
+        """.trimIndent()
 
     @Test
     fun `contextual test sourceSet from another module without KoDEx`() {

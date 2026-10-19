@@ -17,10 +17,7 @@ import java.io.Serializable
  * of a [RunKodexTask]. Resolved lazily through variant-aware configurations, see
  * [Project.exposeContextualCaches] (producer) and [Project.wireCrossModuleContextualCaches] (consumer).
  */
-internal data class CrossModuleContextualSourceSet(
-    val projectPath: String,
-    val sourceSetName: String,
-) : Serializable
+internal data class CrossModuleContextualSourceSet(val projectPath: String, val sourceSetName: String) : Serializable
 
 /** The (original) source set a KoDEx variant belongs to, e.g. `"main"`. */
 internal val KODEX_SOURCE_SET_ATTRIBUTE: Attribute<String> =
@@ -57,7 +54,7 @@ internal const val KODEX_CONTEXTUAL_SOURCES_USAGE = "kodex-contextual-sources"
 internal fun Project.exposeContextualCaches(taskCreator: KodexSourceSetTaskBuilder, task: RunKodexTask) {
     val inputSourceSet = taskCreator.inputSourceSet.get()
     val sourceSetName = inputSourceSet.name
-    val capitalized = sourceSetName.replaceFirstChar { it.titlecase() }
+    val capitalized = sourceSetName.replaceFirstChar { it.uppercase() }
     val objects = objects
 
     configurations.maybeCreate("kodexCacheElementsFor$capitalized") {
