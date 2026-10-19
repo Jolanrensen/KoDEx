@@ -219,7 +219,7 @@ abstract class RunKodexAction {
                 log.warn(e) { "Could not read cache file ${file.absolutePath}: ${e.message}" }
                 null
             }
-        }.reduce { acc, map -> acc + map }
+        }.fold(emptyMap(), Map<String, List<DocumentableWrapper>>::plus)
 
         return cache
     }

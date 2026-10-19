@@ -129,6 +129,54 @@ class TestCrossModuleContextual {
         output shouldBe expectedConsumerOutput
     }
 
+    @Language("kts")
+    private val buildFileWithoutKodex = """
+        plugins {
+            kotlin("jvm") version "2.2.10"
+        }
+
+        repositories { mavenLocal(); mavenCentral() }
+
+        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+            compilerOptions.jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
+        }
+        java { toolchain { languageVersion.set(JavaLanguageVersion.of(8)) } }
+    """.trimIndent()
+
+    @Test
+    fun `contextual test sourceSet from another module without KoDEx`() {
+        projectDirectory.deleteRecursively()
+        projectDirectory.mkdirs()
+
+        File(projectDirectory, "settings.gradle.kts").write(settingsFile)
+        File(projectDirectory, "gradle.properties").write(propertiesFile)
+
+        // producer module: does not apply KoDEx, the sources live in its test source set
+        File(projectDirectory, "producer/build.gradle.kts").write(buildFileWithoutKodex)
+        File(projectDirectory, "producer/src/test/kotlin/com/example/producer/Producer.kt")
+            .write(producerContent)
+
+        // consumer module: references the producer's test source set as contextual
+        File(projectDirectory, "consumer/build.gradle.kts")
+            .write(buildFile(contextualBlock = """contextualSourceSet(":producer", "test")"""))
+        File(projectDirectory, "consumer/src/main/kotlin/com/example/consumer/Consumer.kt")
+            .write(consumerContent)
+
+        GradleRunner.create()
+            .forwardOutput()
+            .withArguments(":consumer:preprocessMainKodex", "--stacktrace")
+            .withProjectDir(projectDirectory)
+            .withDebug(true)
+            .build()
+
+        val output = File(
+            projectDirectory,
+            "consumer/build/kodex/mainKodex/src/main/kotlin/com/example/consumer/Consumer.kt",
+        ).readText()
+
+        output shouldBe expectedConsumerOutput
+    }
+
     private fun File.write(string: String) {
         parentFile.mkdirs()
         FileWriter(this).use { it.write(string) }

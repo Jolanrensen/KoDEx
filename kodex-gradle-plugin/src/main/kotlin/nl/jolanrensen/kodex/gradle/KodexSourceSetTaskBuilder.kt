@@ -92,8 +92,11 @@ abstract class KodexSourceSetTaskBuilder
 
         /**
          * Adds the source set named [sourceSetName] from the project at [projectPath] (e.g. `":other"`)
-         * as a contextual source set. The other project must also apply the KoDEx plugin and `preprocess`
-         * that source set. Only works for projects within the same build.
+         * as a contextual source set.
+         *
+         * If the other project also applies the KoDEx plugin and `preprocess`es that source set, its output
+         * cache is reused. Otherwise, the source directories of that source set are analysed as (uncached)
+         * contextual sources. Only works for projects within the same build.
          */
         fun contextualSourceSet(projectPath: String, sourceSetName: String = "main"): Unit =
             contextualSourceSetsFromOtherProjects.add(
@@ -102,8 +105,11 @@ abstract class KodexSourceSetTaskBuilder
 
         /**
          * Adds the source set named [sourceSetName] from the [project]
-         * as a contextual source set. The other project must also apply the KoDEx plugin and `preprocess`
-         * that source set. Only works for projects within the same build.
+         * as a contextual source set.
+         *
+         * If the other project also applies the KoDEx plugin and `preprocess`es that source set, its output
+         * cache is reused. Otherwise, the source directories of that source set are analysed as (uncached)
+         * contextual sources. Only works for projects within the same build.
          */
         fun contextualSourceSet(project: Project, sourceSetName: String = "main"): Unit =
             contextualSourceSet(project.path, sourceSetName)
@@ -114,8 +120,9 @@ abstract class KodexSourceSetTaskBuilder
          * The [projectPaths] provider is queried after the current project has been evaluated, so it can depend on
          * information that is only available at the end of the build script, like the declared dependencies.
          *
-         * The other projects must also apply the KoDEx plugin and `preprocess` that source set.
-         * Only works for projects within the same build.
+         * If the other projects also apply the KoDEx plugin and `preprocess` that source set, their output
+         * caches are reused. Otherwise, the source directories of that source set are analysed as (uncached)
+         * contextual sources. Only works for projects within the same build.
          */
         fun contextualSourceSets(projectPaths: Provider<out Iterable<String>>, sourceSetName: String = "main"): Unit =
             contextualSourceSetsFromOtherProjects.addAll(
