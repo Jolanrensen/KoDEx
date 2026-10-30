@@ -80,6 +80,12 @@ class DocProcessorService(private val project: Project) {
     private val processorLoader = ProcessorLoader(DocProcessorService::class.java.classLoader)
 
     /**
+     * Resolves links by qualified name in the source roots a file can see, for when the Kotlin resolver can't
+     * (like `main` referencing a `@sample` in the contextual source set `test`).
+     */
+    private val linkResolver = KodexLinkResolver(project)
+
+    /**
      * How KoDEx treats [file]: standalone, or connected to one of the `preprocess` configurations
      * of the Gradle build.
      */
@@ -178,11 +184,17 @@ class DocProcessorService(private val project: Project) {
      * When [fileContext] is [KodexFileContext.Connected], only declarations living in the source roots the Gradle
      * task would analyze are returned (the preprocessed source set and its `contextualSourceSets`), mirroring
      * the result of the Gradle build. Declarations outside of these are treated as non-existent (`null`).
+     *
+     * The Kotlin resolver is asked first, but it can only find what the module of [context] depends on. Everything
+     * else that the Gradle task would see (`main` referencing a `@sample` in the contextual source set `test`, or
+     * a contextual source set of another module) is looked up by qualified name in the visible source roots,
+     * see [KodexLinkResolver].
      */
     private fun query(context: PsiElement, link: String, fileContext: KodexFileContext): List<DocumentableWrapper>? {
         logger.debug { "querying intellij for: $link, from ${(context.navigationElement as? KtElement)?.name}" }
 
-        val kaSymbols = when (val navElement = context.navigationElement) {
+        val navElement = context.navigationElement
+        val kaSymbols = when (navElement) {
             is KtElement -> {
                 resolveKDocLink(
                     link = link,
@@ -193,8 +205,16 @@ class DocProcessorService(private val project: Project) {
             else -> error("Java not supported yet.")
         }
 
-        val targets = kaSymbols
+        val visibleSymbols = kaSymbols
             .filter { fileContext.isVisible(it) }
+            .ifEmpty {
+                logger.debug { "kotlin resolver found nothing visible for $link, resolving by qualified name" }
+                linkResolver
+                    .resolve(link = link, context = navElement, scope = linkResolver.scopeFor(fileContext))
+                    .filter { fileContext.isVisible(it) }
+            }
+
+        val targets = visibleSymbols
             .map {
                 when (it) {
                     is KtDeclaration, is PsiDocCommentOwner ->

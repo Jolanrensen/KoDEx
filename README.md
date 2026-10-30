@@ -573,6 +573,9 @@ The IntelliJ plugin has two states, which you can see in the `KoDEx Settings` to
     - the same `contextualSourceSets`/`contextualSourceSet(":otherProject", ..)`: references are only resolved in the
       source set itself and its contextual source sets, just like in the Gradle build. So, for example, an `@include`
       of a declaration from a module you did not declare as contextual source set won't render in the IDE either.
+      Conversely, declarations in contextual source sets are found even if the IDE module of the file cannot see
+      them (like `main` using a `@sample` from `test`, or from the `test` source set of another module); they are
+      looked up by their (fully) qualified name in the contextual source roots.
 
   Files that are not part of any preprocessed source set keep running standalone. Files that only serve as context
   for another source set use the configuration of that source set. Re-sync the Gradle project after changing the
