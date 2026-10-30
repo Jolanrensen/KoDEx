@@ -56,6 +56,11 @@ intellijPlatform {
 dependencies {
     implementation(project(":kodex-common"))
 
+    // Tooling API model built by the KoDEx Gradle plugin, requested during Gradle sync.
+    // Kept as a separate, dependency-free jar since it's shipped to the Gradle daemon,
+    // see KodexGradleProjectResolverExtension.
+    implementation(project(":kodex-tooling-model"))
+
     // Use JUnit test framework for unit tests
     testImplementation(kotlin("test"))
     testImplementation("io.kotest:kotest-assertions-core:5.5.5")
@@ -66,6 +71,8 @@ dependencies {
             "org.jetbrains.kotlin",
             "com.intellij.java",
             "org.intellij.plugins.markdown",
+            // optional dependency, for the connection to the KoDEx Gradle plugin
+            "com.intellij.gradle",
         )
         zipSigner()
         testFramework(TestFrameworkType.Platform)

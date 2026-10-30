@@ -52,6 +52,9 @@ configurations.all {
 dependencies {
     api(project(":kodex-common"))
 
+    // Tooling API model shared with the IntelliJ plugin, see KodexToolingModelBuilder
+    api(project(":kodex-tooling-model"))
+
     // Gradle plugin dependencies (on plugin classpath)
     shadow(gradleApi())
     shadow(gradleKotlinDsl())
@@ -72,6 +75,11 @@ dependencies {
 
     // shadowed in kodex-common for intellij plugin, but we need it here (safe to keep)
     implementation("org.jetbrains:markdown-jvm:0.6.1")
+}
+
+tasks.withType<Jar> {
+    // read by KodexToolingModelBuilder to tell the IDE which version of KoDEx it is connected to
+    manifest.attributes("Implementation-Version" to project.version)
 }
 
 tasks.shadowJar {
@@ -128,6 +136,11 @@ gradlePlugin.testSourceSets(functionalTest)
 
 configurations[functionalTest.implementationConfigurationName]
     .extendsFrom(configurations.testImplementation.get())
+
+dependencies {
+    // to request the KodexGradleModel through the Tooling API in functional tests
+    functionalTest.implementationConfigurationName(project(":kodex-tooling-model"))
+}
 
 val functionalTestTask = tasks.register<Test>("functionalTest") {
     testClassesDirs = functionalTest.output.classesDirs

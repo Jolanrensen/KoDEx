@@ -18,8 +18,8 @@ import com.intellij.util.ProcessingContext
 import nl.jolanrensen.kodex.completion.Mode.AFTER_ASTERISK
 import nl.jolanrensen.kodex.completion.Mode.AT_TAG_NAME
 import nl.jolanrensen.kodex.completion.Mode.IN_TEXT
-import nl.jolanrensen.kodex.getLoadedProcessors
 import nl.jolanrensen.kodex.kodexCompletionIsEnabled
+import nl.jolanrensen.kodex.services.DocProcessorService
 import org.jetbrains.kotlin.idea.completion.or
 import org.jetbrains.kotlin.idea.completion.singleCharPattern
 import org.jetbrains.kotlin.kdoc.lexer.KDocTokens
@@ -70,7 +70,6 @@ internal fun String.removeDummyIdentifier(): String =
     }
 
 class KDocProcessorTagCompletionProvider(private val mode: Mode) : CompletionProvider<CompletionParameters>() {
-    private val activeDocProcessors = getLoadedProcessors()
 
     private val icon by lazy {
         IconManager.getInstance()
@@ -118,6 +117,11 @@ class KDocProcessorTagCompletionProvider(private val mode: Mode) : CompletionPro
             IN_TEXT ->
                 if (prefix.isNotEmpty() && prefix.first() !in setOf('@', '{', '$')) return
         }
+
+        // the processors configured for the source set of this file (or the defaults when standalone)
+        val activeDocProcessors = DocProcessorService
+            .getInstance(parameters.position.project)
+            .statelessProcessorsFor(parameters.originalFile)
 
         val resultWithPrefix = result.withPrefixMatcher(prefix)
         for (processor in activeDocProcessors) {
