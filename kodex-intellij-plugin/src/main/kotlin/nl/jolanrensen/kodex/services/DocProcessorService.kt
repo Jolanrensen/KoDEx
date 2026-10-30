@@ -13,9 +13,11 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementFactory
+import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiPolyVariantReference
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import nl.jolanrensen.kodex.ProcessorLoader
 import nl.jolanrensen.kodex.createFromIntellijOrNull
 import nl.jolanrensen.kodex.defaultProcessors.IncludeDocProcessor
 import nl.jolanrensen.kodex.docContent.DocContent
@@ -24,9 +26,12 @@ import nl.jolanrensen.kodex.docContent.toDocText
 import nl.jolanrensen.kodex.documentableWrapper.DocumentableWrapper
 import nl.jolanrensen.kodex.documentableWrapper.ProgrammingLanguage
 import nl.jolanrensen.kodex.exceptions.TagDocProcessorFailedException
-import nl.jolanrensen.kodex.getLoadedProcessors
 import nl.jolanrensen.kodex.getOrigin
+import nl.jolanrensen.kodex.gradle.KodexFileContext
+import nl.jolanrensen.kodex.gradle.KodexGradleConnectionService
+import nl.jolanrensen.kodex.gradle.KodexSourceSetConfiguration
 import nl.jolanrensen.kodex.kodexRenderingIsEnabled
+import nl.jolanrensen.kodex.processor.DocProcessor
 import nl.jolanrensen.kodex.query.DocumentablesByPath
 import nl.jolanrensen.kodex.query.DocumentablesByPathWithCache
 import nl.jolanrensen.kodex.utils.copiedWithFile
@@ -37,7 +42,9 @@ import org.jetbrains.kotlin.idea.kdoc.KDocElementFactory
 import org.jetbrains.kotlin.kdoc.psi.impl.KDocName
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtElement
+import java.io.File
 import java.util.concurrent.CancellationException
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -56,13 +63,61 @@ class DocProcessorService(private val project: Project) {
         fun getInstance(project: Project): DocProcessorService = project.service()
     }
 
-    // TODO make configurable
+    /** Used in [KodexFileContext.Standalone] mode, connected files use [KodexSourceSetConfiguration.processLimit]. */
     val processLimit: Int = 10_000
 
     /**
      * Determines whether the DocProcessor is enabled or disabled.
      */
     val isEnabled get() = kodexRenderingIsEnabled
+
+    private val gradleConnection get() = KodexGradleConnectionService.getInstance(project)
+
+    /**
+     * Creates the processors for a [KodexFileContext]: the built-in defaults when standalone,
+     * or the processors (and KoDEx plugins) configured in the Gradle build when connected.
+     */
+    private val processorLoader = ProcessorLoader(DocProcessorService::class.java.classLoader)
+
+    /**
+     * How KoDEx treats [file]: standalone, or connected to one of the `preprocess` configurations
+     * of the Gradle build.
+     */
+    fun contextFor(file: PsiFile?): KodexFileContext = gradleConnection.contextFor(file)
+
+    fun contextFor(element: PsiElement): KodexFileContext = gradleConnection.contextFor(element)
+
+    private fun contextFor(file: File): KodexFileContext = gradleConnection.contextFor(file)
+
+    /**
+     * Fresh processor instances for the given [context].
+     * Fresh, because a [DocProcessor] instance can only run once.
+     */
+    fun processorsFor(context: KodexFileContext): List<DocProcessor> = processorLoader.load(context)
+
+    /**
+     * Processor instances for the given [context] that are only used for their stateless information
+     * ([DocProcessor.completionInfos], [DocProcessor.getHighlightsFor]), so they can be reused.
+     */
+    fun statelessProcessorsFor(context: KodexFileContext): List<DocProcessor> =
+        statelessProcessors.getOrPut(context.cacheKey) { processorsFor(context) }
+
+    fun statelessProcessorsFor(file: PsiFile?): List<DocProcessor> = statelessProcessorsFor(contextFor(file))
+
+    private val statelessProcessors = ConcurrentHashMap<Any, List<DocProcessor>>()
+
+    /** Processors with the same key behave identically, so caches and stateless instances can be shared. */
+    private val KodexFileContext.cacheKey: Any
+        get() = when (this) {
+            is KodexFileContext.Standalone -> KodexFileContext.Standalone
+            is KodexFileContext.Connected -> configuration.processorsKey
+        }
+
+    private val KodexFileContext.processLimit: Int
+        get() = when (this) {
+            is KodexFileContext.Standalone -> this@DocProcessorService.processLimit
+            is KodexFileContext.Connected -> configuration.processLimit
+        }
 
     fun PsiElement.allChildren(): List<PsiElement> = children.toList() + children.flatMap { it.allChildren() }
 
@@ -119,8 +174,12 @@ class DocProcessorService(private val project: Project) {
 
     /**
      * Helper function that queries the project for reference links and returns them as a list of DocumentableWrappers.
+     *
+     * When [fileContext] is [KodexFileContext.Connected], only declarations living in the source roots the Gradle
+     * task would analyze are returned (the preprocessed source set and its `contextualSourceSets`), mirroring
+     * the result of the Gradle build. Declarations outside of these are treated as non-existent (`null`).
      */
-    private fun query(context: PsiElement, link: String): List<DocumentableWrapper>? {
+    private fun query(context: PsiElement, link: String, fileContext: KodexFileContext): List<DocumentableWrapper>? {
         logger.debug { "querying intellij for: $link, from ${(context.navigationElement as? KtElement)?.name}" }
 
         val kaSymbols = when (val navElement = context.navigationElement) {
@@ -134,17 +193,19 @@ class DocProcessorService(private val project: Project) {
             else -> error("Java not supported yet.")
         }
 
-        val targets = kaSymbols.map {
-            when (it) {
-                is KtDeclaration, is PsiDocCommentOwner ->
-                    createFromIntellijOrNull(it)
+        val targets = kaSymbols
+            .filter { fileContext.isVisible(it) }
+            .map {
+                when (it) {
+                    is KtDeclaration, is PsiDocCommentOwner ->
+                        createFromIntellijOrNull(it)
 
-                else -> null
+                    else -> null
+                }
             }
-        }
 
         return when {
-            // No declarations found in entire project, so null
+            // No declarations found in entire project (or in the visible source sets), so null
             targets.isEmpty() -> null
 
             // All documentables are null, but still declarations found, so empty list
@@ -210,18 +271,39 @@ class DocProcessorService(private val project: Project) {
     }
 
     /**
+     * Whether [element] can be seen from a file with this context. Everything is visible when standalone.
+     * Elements outside the local file system (like compiled library classes) are never visible when connected,
+     * as Gradle KoDEx only analyzes sources.
+     */
+    private fun KodexFileContext.isVisible(element: PsiElement): Boolean {
+        if (this !is KodexFileContext.Connected) return true
+        val virtualFile = element.containingFile?.originalFile?.virtualFile ?: return false
+        if (!virtualFile.isInLocalFileSystem) return false
+        return isVisible(File(virtualFile.path))
+    }
+
+    /**
      * Thread/coroutine-safe wrapper around [DocumentablesByPathWithCache] so it
      * is modified in a thread-safe way.
+     *
+     * There is one per set of processors (see [cacheKey]), since the cached results depend on which processors
+     * ran with which arguments.
      */
-    private inner class CacheHolder {
+    private inner class CacheHolder(private val context: KodexFileContext) {
         private val mutex = Mutex()
+
+        val processLimit: Int = context.processLimit
+
+        /** Fresh processors for the [context] of this cache. */
+        fun processors(): List<DocProcessor> = processorsFor(context)
 
         private val documentableCache = DocumentablesByPathWithCache(
             processLimit = processLimit,
-            loadedProcessors = getLoadedProcessors(),
+            loadedProcessors = statelessProcessorsFor(context),
             logDebug = { logger.debug(null, it) },
             queryNew = { context, link ->
-                query(context.getOrigin(), link)
+                // the visibility depends on the file the query comes from, not on the cache
+                query(context.getOrigin(), link, contextFor(context.file))
             },
         )
 
@@ -235,7 +317,10 @@ class DocProcessorService(private val project: Project) {
         }
     }
 
-    private val documentableCacheHolder = CacheHolder()
+    private val cacheHolders = ConcurrentHashMap<Any, CacheHolder>()
+
+    private fun cacheHolderFor(context: KodexFileContext): CacheHolder =
+        cacheHolders.getOrPut(context.cacheKey) { CacheHolder(context) }
 
     fun getDocumentableWrapperOrNull(psiElement: PsiElement): DocumentableWrapper? {
         val documentableWrapper = createFromIntellijOrNull(psiElement)
@@ -249,8 +334,9 @@ class DocProcessorService(private val project: Project) {
      * Returns a processed version of the DocumentableWrapper, or `null` if it could not be processed.
      * ([DocumentableWrapper.docContent] contains the modified doc content).
      */
-    suspend fun getProcessedDocumentableWrapperOrNull(documentableWrapper: DocumentableWrapper): DocumentableWrapper? =
-        documentableCacheHolder.withLock { documentableCache ->
+    suspend fun getProcessedDocumentableWrapperOrNull(documentableWrapper: DocumentableWrapper): DocumentableWrapper? {
+        val cacheHolder = cacheHolderFor(contextFor(documentableWrapper.file))
+        return cacheHolder.withLock { documentableCache ->
             val needsRebuild = documentableCache.updatePreProcessing(documentableWrapper)
 
             logger.debug { "\n\n" }
@@ -280,7 +366,7 @@ class DocProcessorService(private val project: Project) {
             }
 
             // Process the DocumentablesByPath
-            val results = processDocumentablesByPath(documentableCache)
+            val results = processDocumentablesByPath(documentableCache, cacheHolder)
 
             // Retrieve the original DocumentableWrapper from the results
             val doc = results[documentableWrapper.identifier] ?: return null
@@ -289,6 +375,7 @@ class DocProcessorService(private val project: Project) {
 
             return doc
         }
+    }
 
     private suspend fun getProcessedDocContent(psiElement: PsiElement): DocContent? {
         return try {
@@ -329,17 +416,19 @@ class DocProcessorService(private val project: Project) {
 
     private suspend fun processDocumentablesByPath(
         sourceDocsByPath: DocumentablesByPathWithCache,
+        cacheHolder: CacheHolder,
     ): DocumentablesByPath {
-        // Find all processors
-        val processors = getLoadedProcessors().toMutableList()
+        // Find all processors (fresh instances) for the configuration of this cache
+        val processors = cacheHolder.processors().toMutableList()
 
-        // for cache collecting after include doc processor
+        // for cache collecting after include doc processor (or at the start if there is none)
         processors.add(
             processors.indexOfFirst { it is IncludeDocProcessor } + 1,
             PostIncludeDocProcessorCacheCollector(sourceDocsByPath),
         )
 
         // Run all processors
+        val processLimit = cacheHolder.processLimit
         val modifiedDocumentables = processors.fold(sourceDocsByPath as DocumentablesByPath) { acc, processor ->
             processor.processSafely(processLimit = processLimit, documentablesByPath = acc)
         }
@@ -349,5 +438,15 @@ class DocProcessorService(private val project: Project) {
 
     init {
         thisLogger().setLevel(LogLevel.INFO) // TEMP
+
+        // caches depend on the Gradle configuration, so start over when it changes (after a sync)
+        project.messageBus.connect().subscribe(
+            KodexGradleConnectionService.TOPIC,
+            KodexGradleConnectionService.KodexGradleConnectionListener {
+                statelessProcessors.clear()
+                processorLoader.reset()
+                cacheHolders.clear()
+            },
+        )
     }
 }

@@ -1,0 +1,13 @@
+<!-- Loaded only when the Gradle plugin of the IDE (com.intellij.gradle) is available, see plugin.xml.
+     Connects the KoDEx IntelliJ plugin to the KoDEx Gradle plugin: during Gradle sync the `kodex { preprocess(...) }`
+     configuration of the build is imported, so the IDE uses the same processors, arguments, plugins and
+     contextual source sets as the build. Without it, the plugin runs "standalone" with its built-in defaults. -->
+<idea-plugin>
+    <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">
+        <projectResolve implementation="nl.jolanrensen.kodex.gradle.sync.KodexGradleProjectResolverExtension"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <externalProjectDataService implementation="nl.jolanrensen.kodex.gradle.sync.KodexGradleDataService"/>
+    </extensions>
+</idea-plugin>

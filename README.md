@@ -553,10 +553,30 @@ It now also helps with writing the documentation by providing completion, highli
 
 Now on the [Marketplace](https://plugins.jetbrains.com/plugin/27473)!
 
-You can also try building the plugin yourself from sources and installing it in IntelliJ. The plugin in its current
-state is unconfigurable and just uses the default processors as shown in the sample above. Also, it uses the IDE engine
+You can also try building the plugin yourself from sources and installing it in IntelliJ. The plugin uses the IDE engine
 to resolve references. This is because it's a lot faster than my own engine + Dokka, but it does mean that there might
 be some differences with the preview and how it will look in the final docs. So, take this into account.
 
-I'm still working on connecting it to the Gradle plugin somehow or providing a way to configure it correctly, but until
-then, you can use it as is and be more efficient in your documentation writing!
+### Standalone vs. connected to Gradle (Experimental)
+
+The IntelliJ plugin has two states, which you can see in the `KoDEx Settings` tool window:
+
+- **Standalone**: the default when the project doesn't use the KoDEx Gradle plugin (or the Gradle plugin of the IDE is
+  not available). The default processors are used (as shown in the sample above) and references like `@include [X]`
+  are resolved anywhere in the project.
+- **Connected**: when the project applies the KoDEx Gradle plugin and has a `kodex { preprocess(...) { ... } }`
+  configuration. After a Gradle sync, the IDE plugin reads that configuration from the build (through a Gradle
+  Tooling API model, `KodexGradleModel`, provided by the Gradle plugin) and, for each file in a preprocessed source set,
+  uses:
+    - the same `processors`, in the same order, and the same `arguments` as the Gradle task of that source set,
+    - the same KoDEx plugins (custom processors from `dependencies { plugin(...) }`),
+    - the same `contextualSourceSets`/`contextualSourceSet(":otherProject", ..)`: references are only resolved in the
+      source set itself and its contextual source sets, just like in the Gradle build. So, for example, an `@include`
+      of a declaration from a module you did not declare as contextual source set won't render in the IDE either.
+
+  Files that are not part of any preprocessed source set keep running standalone. Files that only serve as context
+  for another source set use the configuration of that source set. Re-sync the Gradle project after changing the
+  `kodex { }` block to update the IDE. The connection can be turned off in the tool window to force standalone mode.
+
+Note that some arguments are always overridden by the IDE, since it renders a single doc at a time:
+`INCLUDE_DOC_PROCESSOR_PRE_SORT = false` and `SAMPLE_DOC_PROCESSOR_THROW_WHEN_NOT_FOUND = false`.

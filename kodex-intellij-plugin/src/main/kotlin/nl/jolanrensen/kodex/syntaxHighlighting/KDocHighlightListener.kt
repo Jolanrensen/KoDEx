@@ -33,9 +33,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.suspendCancellableCoroutine
-import nl.jolanrensen.kodex.getLoadedProcessors
 import nl.jolanrensen.kodex.intellij.HighlightType
 import nl.jolanrensen.kodex.kodexHighlightingIsEnabled
+import nl.jolanrensen.kodex.services.DocProcessorService
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import java.awt.Font
 import java.util.concurrent.ConcurrentHashMap
@@ -95,8 +95,6 @@ class KDocHighlightListener private constructor(private val editor: Editor) :
             onBufferOverflow = BufferOverflow.DROP_OLDEST,
         )
 
-        private val loadedProcessors = getLoadedProcessors()
-
         /** Only touched from the EDT, see [applyHighlights]. */
         private val highlighters = mutableListOf<RangeHighlighter>()
 
@@ -155,6 +153,9 @@ class KDocHighlightListener private constructor(private val editor: Editor) :
                 .findElementAt(caretOffset)
                 ?.findParentOfType<KDoc>(strict = false)
                 ?: return emptyList()
+
+            // the processors configured for the source set of this file (or the defaults when standalone)
+            val loadedProcessors = DocProcessorService.getInstance(psiFile.project).statelessProcessorsFor(psiFile)
 
             val highlightInfos = getHighlightInfosFor(kdoc, loadedProcessors)
             val kdocStart = kdoc.startOffset
