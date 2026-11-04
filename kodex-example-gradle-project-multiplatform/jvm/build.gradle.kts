@@ -1,10 +1,10 @@
 plugins {
-    kotlin("jvm")
+    alias(libs.plugins.kotlinJvm)
     application
 }
 
 group = "nl.jolanrensen.example"
-version = "1.0.0"
+version = libs.versions.exampleMultiplatformProject.get()
 application {
     mainClass.set("nl.jolanrensen.example.ApplicationKt")
 }

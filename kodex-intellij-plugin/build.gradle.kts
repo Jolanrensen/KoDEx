@@ -8,13 +8,13 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     id("java")
-    kotlin("jvm")
-    id("org.jetbrains.intellij.platform") version "2.16.0"
-    id("org.jlleitschuh.gradle.ktlint")
+    alias(libs.plugins.kotlinJvm)
+    alias(libs.plugins.intellijPlatform)
+    alias(libs.plugins.ktlint)
 }
 
 group = "nl.jolanrensen.kodex"
-version = "0.7.2-SNAPSHOT"
+version = libs.versions.kodex.get()
 
 repositories {
     mavenCentral()
@@ -45,7 +45,7 @@ intellijPlatform {
         cliPath.set(file("verifier-all.jar"))
 
         ides {
-            create(IntelliJPlatformType.IntellijIdeaUltimate, "2026.1") {
+            create(IntelliJPlatformType.IntellijIdeaUltimate, libs.versions.intellijVerificationIde.get()) {
                 useInstaller = false
             }
             recommended()
@@ -54,19 +54,19 @@ intellijPlatform {
 }
 
 dependencies {
-    implementation(project(":kodex-common"))
+    implementation(projects.kodexCommon)
 
     // Tooling API model built by the KoDEx Gradle plugin, requested during Gradle sync.
     // Kept as a separate, dependency-free jar since it's shipped to the Gradle daemon,
     // see KodexGradleProjectResolverExtension.
-    implementation(project(":kodex-tooling-model"))
+    implementation(projects.kodexToolingModel)
 
     // Use JUnit test framework for unit tests
     testImplementation(kotlin("test"))
-    testImplementation("io.kotest:kotest-assertions-core:5.5.5")
+    testImplementation(libs.kotestAssertionsCore)
 
     intellijPlatform {
-        intellijIdeaUltimate("262.10315.69")
+        intellijIdeaUltimate(libs.versions.intellijIdea.get())
         bundledPlugins(
             "org.jetbrains.kotlin",
             "com.intellij.java",

@@ -11,8 +11,6 @@ import java.io.File
 import java.io.FileWriter
 import java.io.IOException
 
-val VERSION = "0.7.2-SNAPSHOT"
-
 abstract class DocProcessorFunctionalTest(name: String) {
 
     init {
@@ -103,8 +101,8 @@ abstract class DocProcessorFunctionalTest(name: String) {
         import nl.jolanrensen.kodex.defaultProcessors.*
         
         plugins {  
-            kotlin("jvm") version "2.4.10"
-            id("nl.jolanrensen.kodex") version "$VERSION"
+            kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
+            id("nl.jolanrensen.kodex") version "${BuildConfig.KODEX_VERSION}"
         }
         
         repositories {

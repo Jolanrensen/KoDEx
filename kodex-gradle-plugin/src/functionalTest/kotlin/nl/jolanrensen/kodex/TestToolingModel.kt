@@ -48,8 +48,8 @@ class TestToolingModel {
         import nl.jolanrensen.kodex.defaultProcessors.*
         
         plugins {
-            kotlin("jvm") version "2.2.10"
-            id("nl.jolanrensen.kodex") version "$VERSION"
+            kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
+            id("nl.jolanrensen.kodex") version "${BuildConfig.KODEX_VERSION}"
         }
         
         repositories { mavenLocal(); mavenCentral() }
@@ -67,7 +67,7 @@ class TestToolingModel {
     @Language("kts")
     private val plainBuildFile = """
         plugins {
-            kotlin("jvm") version "2.2.10"
+            kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
         }
         repositories { mavenLocal(); mavenCentral() }
     """.trimIndent()
@@ -121,7 +121,7 @@ class TestToolingModel {
 
         // Consumer: two preprocess configurations, with same-project and cross-module contextual source sets
         val consumerModel = fetchModel(File(projectDirectory, "consumer")).shouldNotBeNull()
-        consumerModel.kodexVersion shouldBe VERSION
+        consumerModel.kodexVersion shouldBe BuildConfig.KODEX_VERSION
         consumerModel.projectPath shouldBe ":consumer"
         consumerModel.projectDir.canonicalFile shouldBe File(projectDirectory, "consumer").canonicalFile
         consumerModel.preprocessConfigurations.map { it.sourceSetName } shouldContainExactly listOf("main", "test")

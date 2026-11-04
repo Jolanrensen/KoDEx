@@ -1,10 +1,10 @@
 plugins {
     java
-    id("com.vanniktech.maven.publish")
+    alias(libs.plugins.mavenPublish)
 }
 
 group = "nl.jolanrensen.kodex"
-version = "0.7.2-SNAPSHOT"
+version = libs.versions.kodex.get()
 
 repositories {
     mavenCentral()
