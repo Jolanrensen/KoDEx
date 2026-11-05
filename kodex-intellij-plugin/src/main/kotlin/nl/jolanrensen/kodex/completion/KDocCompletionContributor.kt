@@ -119,8 +119,7 @@ class KDocProcessorTagCompletionProvider(private val mode: Mode) : CompletionPro
         }
 
         // the processors configured for the source set of this file (or the defaults when standalone)
-        val activeDocProcessors = DocProcessorService
-            .getInstance(parameters.position.project)
+        val activeDocProcessors = DocProcessorService.getInstance(parameters.position.project)
             .statelessProcessorsFor(parameters.originalFile)
 
         val resultWithPrefix = result.withPrefixMatcher(prefix)

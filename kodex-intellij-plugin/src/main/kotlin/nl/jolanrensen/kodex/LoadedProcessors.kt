@@ -39,13 +39,13 @@ val standaloneProcessors: List<String> = listOf(
  * (so pre-sorting all docs makes no sense) and should keep rendering instead of failing when
  * something is not found.
  */
-private val ideArgumentOverrides: Map<String, Any?> = mapOf(
+private val ideArgumentOverrides = mapOf(
     INCLUDE_DOC_PROCESSOR_PRE_SORT to false,
     SAMPLE_DOC_PROCESSOR_THROW_WHEN_NOT_FOUND to false,
 )
 
 /** Arguments used in standalone mode or when the Gradle build does not specify them. */
-private val ideDefaultArguments: Map<String, Any?> = mapOf(
+private val ideDefaultArguments = mapOf(
     ARG_DOC_PROCESSOR_LOG_NOT_FOUND to false,
 )
 

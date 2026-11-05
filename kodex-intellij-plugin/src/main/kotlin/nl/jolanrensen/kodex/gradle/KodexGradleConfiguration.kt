@@ -72,7 +72,8 @@ data class KodexSourceSetConfiguration(
                 is Boolean -> "b:$value"
                 is Int -> "i:$value"
                 is Long -> "l:$value"
-                is Double, is Float -> "d:$value"
+                is Double -> "d:$value"
+                is Float -> "f:$value"
                 else -> "s:$value"
             }
 
@@ -85,6 +86,7 @@ data class KodexSourceSetConfiguration(
                 "i" -> value.toIntOrNull() ?: value
                 "l" -> value.toLongOrNull() ?: value
                 "d" -> value.toDoubleOrNull() ?: value
+                "f" -> value.toFloatOrNull() ?: value
                 else -> value
             }
         }

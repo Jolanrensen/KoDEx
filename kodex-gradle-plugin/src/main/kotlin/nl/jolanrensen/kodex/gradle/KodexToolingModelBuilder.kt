@@ -73,11 +73,9 @@ internal class KodexToolingModelBuilder : ToolingModelBuilder {
      *
      * Resolution is lenient, so an unresolvable plugin doesn't break the Gradle sync.
      */
-    private fun Project.resolvePluginClasspath(task: RunKodexTask): List<File> {
-        val classpath = task.classpath.orNull ?: return emptyList()
-
-        return try {
-            when (classpath) {
+    private fun Project.resolvePluginClasspath(task: RunKodexTask): List<File> =
+        try {
+            when (val classpath = task.classpath.orNull ?: return emptyList()) {
                 is Configuration -> {
                     val pluginDependencies = classpath.allDependencies.filter { !it.isKodexRuntimeDependency() }
                     if (pluginDependencies.isEmpty()) return emptyList()
@@ -101,8 +99,8 @@ internal class KodexToolingModelBuilder : ToolingModelBuilder {
             )
             emptyList()
         }
-    }
 }
+
 
 /**
  * The Dokka (analysis) dependencies KoDEx itself needs to run on Gradle's side,
