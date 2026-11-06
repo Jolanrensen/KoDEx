@@ -18,12 +18,19 @@
       <li><code>REMOVE_ESCAPE_CHARS_PROCESSOR</code>: The processor that removes escape characters</li>
     </ul>
     The plugin works both in K1 and K2 mode of the IDE, but should be turned off when viewing the sources of
-    libraries or when inside a Kotlin notebooks.
+    libraries or when inside a Kotlin notebooks.<br>
+    <br>
+    When the project uses the KoDEx Gradle plugin, the IntelliJ plugin connects to it after a Gradle sync and uses
+    the same processors, arguments, KoDEx plugins and contextual source sets as configured in
+    <code>kodex { preprocess(...) { ... } }</code> for each source set. Otherwise, it runs standalone with the
+    defaults above.
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.kotlin</depends>
     <depends>com.intellij.java</depends>
+    <!-- Connection to the KoDEx Gradle plugin, standalone mode without it -->
+    <depends optional="true" config-file="kodex-gradle.xml">com.intellij.gradle</depends>
 
     <resource-bundle>messages.MessageBundle</resource-bundle>
 

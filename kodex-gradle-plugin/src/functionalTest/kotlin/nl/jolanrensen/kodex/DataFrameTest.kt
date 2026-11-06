@@ -21,8 +21,8 @@ class DataFrameTest : DocProcessorFunctionalTest("df") {
         val tomlFile = dfProjectDirectory.resolve("gradle/libs.versions.toml")
         var txt = tomlFile.readText()
         txt = txt
-            .replace("docProcessor = \"[^\"]+\"".toRegex(), "docProcessor = \"$VERSION\"")
-            .replace("kodex = \"[^\"]+\"".toRegex(), "kodex = \"$VERSION\"")
+            .replace("docProcessor = \"[^\"]+\"".toRegex(), "docProcessor = \"${BuildConfig.KODEX_VERSION}\"")
+            .replace("kodex = \"[^\"]+\"".toRegex(), "kodex = \"${BuildConfig.KODEX_VERSION}\"")
         tomlFile.write(txt)
     }
 

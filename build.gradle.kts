@@ -1,8 +1,8 @@
 plugins {
-    kotlin("jvm") version "2.4.0" apply false
-    id("com.gradleup.shadow") version "9.3.0" apply false
-    id("org.jlleitschuh.gradle.ktlint") version "12.1.1"
-    id("com.vanniktech.maven.publish") version "0.34.0" apply false
+    alias(libs.plugins.kotlinJvm) apply false
+    alias(libs.plugins.shadow) apply false
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.mavenPublish) apply false
 }
 
 repositories {

@@ -6,18 +6,28 @@ plugins {
     // Apply the Java Gradle plugin development plugin to add support for developing Gradle plugins
     `java-gradle-plugin`
     java
-    kotlin("jvm")
-    id("com.gradle.plugin-publish") version "1.1.0"
+    alias(libs.plugins.kotlinJvm)
+    alias(libs.plugins.pluginPublish)
     signing
-    id("com.gradleup.shadow")
-    id("org.jlleitschuh.gradle.ktlint")
+    alias(libs.plugins.shadow)
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.buildConfig)
 }
 
 group = "nl.jolanrensen.kodex"
-version = "0.7.2-SNAPSHOT"
+version = libs.versions.kodex.get()
 
-val kotlinVersion = "2.4.0"
-val dokkaVersion = "2.2.0"
+val kotlinVersion = libs.versions.kotlin.get()
+val dokkaVersion = libs.versions.dokka.get()
+
+buildConfig {
+    packageName("nl.jolanrensen.kodex")
+    useKotlinOutput { internalVisibility = false }
+    buildConfigField("KODEX_VERSION", libs.versions.kodex.get())
+    buildConfigField("KOTLIN_VERSION", kotlinVersion)
+    buildConfigField("DOKKA_VERSION", dokkaVersion)
+    buildConfigField("MAVEN_PUBLISH_VERSION", libs.versions.mavenPublish.get())
+}
 
 publishing {
     repositories {
@@ -50,28 +60,36 @@ configurations.all {
 }
 
 dependencies {
-    api(project(":kodex-common"))
+    api(projects.kodexCommon)
+
+    // Tooling API model shared with the IntelliJ plugin, see KodexToolingModelBuilder
+    api(projects.kodexToolingModel)
 
     // Gradle plugin dependencies (on plugin classpath)
     shadow(gradleApi())
     shadow(gradleKotlinDsl())
 
     // Keep Kotlin Gradle plugins as compileOnly (do not add to runtime classpath)
-    compileOnly("org.jetbrains.kotlin.jvm:org.jetbrains.kotlin.jvm.gradle.plugin:$kotlinVersion")
-    compileOnly("org.jetbrains.kotlin.multiplatform:org.jetbrains.kotlin.multiplatform.gradle.plugin:$kotlinVersion")
+    compileOnly(libs.kotlinJvmGradlePlugin)
+    compileOnly(libs.kotlinMultiplatformGradlePlugin)
 
-    compileOnly("org.jetbrains.dokka:analysis-kotlin-symbols:$dokkaVersion")
-    compileOnly("org.jetbrains.dokka:dokka-base:$dokkaVersion")
-    compileOnly("org.jetbrains.dokka:dokka-core:$dokkaVersion")
-    compileOnly("org.jetbrains.dokka:dokka-base-test-utils:$dokkaVersion")
-    compileOnly("org.jetbrains.dokka:dokka-gradle-plugin:$dokkaVersion")
+    compileOnly(libs.dokkaAnalysisKotlinSymbols)
+    compileOnly(libs.dokkaBase)
+    compileOnly(libs.dokkaCore)
+    compileOnly(libs.dokkaBaseTestUtils)
+    compileOnly(libs.dokkaGradlePlugin)
 
     // Use JUnit test framework for unit tests
     testImplementation(kotlin("test"))
-    testImplementation("io.kotest:kotest-assertions-core:5.5.5")
+    testImplementation(libs.kotestAssertionsCore)
 
     // shadowed in kodex-common for intellij plugin, but we need it here (safe to keep)
-    implementation("org.jetbrains:markdown-jvm:0.6.1")
+    implementation(libs.markdownJvm)
+}
+
+tasks.withType<Jar> {
+    // read by KodexToolingModelBuilder to tell the IDE which version of KoDEx it is connected to
+    manifest.attributes("Implementation-Version" to project.version)
 }
 
 tasks.shadowJar {
@@ -79,7 +97,7 @@ tasks.shadowJar {
     isZip64 = true
     archiveClassifier = ""
 
-    // Avoid clashes with org.jetbrains:markdown-jvm:0.6.1 in :common
+    // Avoid clashes with org.jetbrains:markdown-jvm in :common
     relocate("org.intellij.markdown", "nl.jolanrensen.kodex.markdown")
 
     // Do NOT shadow Dokka or Kotlin compiler into the plugin jar — keeps buildscript classpath clean.
@@ -128,6 +146,13 @@ gradlePlugin.testSourceSets(functionalTest)
 
 configurations[functionalTest.implementationConfigurationName]
     .extendsFrom(configurations.testImplementation.get())
+
+dependencies {
+    functionalTest.implementationConfigurationName(sourceSets.main.get().output)
+
+    // to request the KodexGradleModel through the Tooling API in functional tests
+    functionalTest.implementationConfigurationName(projects.kodexToolingModel)
+}
 
 val functionalTestTask = tasks.register<Test>("functionalTest") {
     testClassesDirs = functionalTest.output.classesDirs

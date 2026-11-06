@@ -7,10 +7,10 @@ import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.startOffset
-import nl.jolanrensen.kodex.getLoadedProcessors
 import nl.jolanrensen.kodex.intellij.HighlightInfo
 import nl.jolanrensen.kodex.intellij.HighlightType
 import nl.jolanrensen.kodex.kodexHighlightingIsEnabled
+import nl.jolanrensen.kodex.services.DocProcessorService
 import org.jetbrains.kotlin.idea.codeinsight.utils.findExistingEditor
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 
@@ -20,9 +20,6 @@ import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 class KDocHighlightAnnotator :
     Annotator,
     DumbAware {
-
-    // are used stateless
-    private val loadedProcessors = getLoadedProcessors()
 
     @Suppress("ktlint:standard:comment-wrapping")
     private fun HighlightInfo.createAsAnnotator(kdoc: KDoc, holder: AnnotationHolder) =
@@ -49,6 +46,10 @@ class KDocHighlightAnnotator :
     override fun annotate(element: PsiElement, holder: AnnotationHolder) {
         if (!kodexHighlightingIsEnabled) return
         if (element !is KDoc) return
+
+        // the processors configured for the source set of this file (or the defaults when standalone), used stateless
+        val loadedProcessors = DocProcessorService.getInstance(element.project)
+            .statelessProcessorsFor(element.containingFile)
 
         getHighlightInfosFor(element, loadedProcessors).forEach {
             // handled by KDocHighlightListener
