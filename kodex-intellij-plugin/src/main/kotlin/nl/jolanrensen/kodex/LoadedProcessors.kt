@@ -83,7 +83,7 @@ fun Any.getLoadedProcessors(): List<DocProcessor> = this.javaClass.classLoader.g
  */
 class ProcessorLoader(private val pluginClassLoader: ClassLoader) {
 
-    private val classLoaders = ConcurrentHashMap<List<String>, ClassLoader>()
+    private val classLoaders = ConcurrentHashMap<List<String>, URLClassLoader>()
 
     /** Fresh instances of the processors for [context]. */
     fun load(context: KodexFileContext): List<DocProcessor> =
@@ -136,7 +136,9 @@ class ProcessorLoader(private val pluginClassLoader: ClassLoader) {
 
     /** Forgets the cached class loaders, e.g. after a Gradle sync changed the plugin jars. */
     fun reset() {
+        val copy = classLoaders.values.toList()
         classLoaders.clear()
+        copy.forEach { runCatching { it.close() } }
     }
 }
 

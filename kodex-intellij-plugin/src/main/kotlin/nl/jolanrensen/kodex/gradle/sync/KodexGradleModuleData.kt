@@ -11,10 +11,8 @@ import org.jetbrains.plugins.gradle.util.GradleConstants
  * [com.intellij.openapi.externalSystem.model.DataNode] during Gradle sync by [KodexGradleProjectResolverExtension]
  * and consumed by [KodexGradleDataService].
  */
-class KodexGradleModuleData(
-    val kodexVersion: String,
-    val configurations: List<KodexSourceSetConfiguration>,
-) : AbstractExternalEntityData(GradleConstants.SYSTEM_ID) {
+class KodexGradleModuleData(val kodexVersion: String, val configurations: List<KodexSourceSetConfiguration>) :
+    AbstractExternalEntityData(GradleConstants.SYSTEM_ID) {
 
     companion object {
         @JvmField
