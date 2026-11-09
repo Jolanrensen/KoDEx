@@ -41,8 +41,6 @@ import java.io.Serializable
 import kotlin.time.DurationUnit
 import kotlin.time.measureTimedValue
 
-private val log = KotlinLogging.logger("KoDEx")
-
 /**
  * Matches a single (non-static, non-star) import statement on its own line, including the line break.
  * Group 1 is the imported path.
@@ -93,6 +91,7 @@ abstract class RunKodexAction {
     }
 
     abstract val parameters: Parameters
+    private val log = KotlinLogging.logger("KoDEx")
 
     lateinit var sources: DokkaSourceSetImpl
     lateinit var contextualSources: Set<DokkaSourceSetImpl>
@@ -237,7 +236,8 @@ abstract class RunKodexAction {
             try {
                 readDocumentablesByPathMapFromCache(file).also {
                     log.lifecycle {
-                        "Read cache file ${file.absolutePath}. KoDEx will try applying this cache for contextual sources."
+                        val numberOfDocumentables = it.values.sumOf { it.size }
+                        "Read $numberOfDocumentables documentables from cache file ${file.absolutePath}. KoDEx will try applying this cache for contextual sources."
                     }
                 }
             } catch (e: Exception) {
@@ -379,9 +379,13 @@ abstract class RunKodexAction {
 
     private fun cacheModifiedDocumentablesByPath(documentablesByPathMap: DocumentablesByPathMap) {
         val cacheFile = parameters.outputCacheFile ?: return
+
         try {
             documentablesByPathMap.writeCacheTo(cacheFile).also {
-                log.lifecycle { "Wrote KoDEx modified-sources cache to $cacheFile" }
+                log.lifecycle {
+                    val numberOfModifiedDocumentables = documentablesByPathMap.values.sumOf { it.size }
+                    "Wrote $numberOfModifiedDocumentables KoDEx modified-sources cache to $cacheFile"
+                }
             }
         } catch (e: Exception) {
             log.warn(e) { "Could not write KoDEx modified-sources cache to $cacheFile" }
