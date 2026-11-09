@@ -60,6 +60,59 @@ class TestSample : DocProcessorFunctionalTest(name = "sample") {
     }
 
     @Test
+    fun `Sample contains escape character Kotlin`() {
+        @Language("kt")
+        val content = """
+            package com.example.plugin
+            
+            /**
+             * Hello World!
+             */
+            fun helloWorld() {
+                Regex("\\s[0-9]+")
+                Regex(${'"'}""\s[0-9]+${'"'}"")
+            }
+            
+            /**
+             * @sample [helloWorld]
+             */
+            fun helloWorld2() {}
+        """.trimIndent()
+
+        @Language("kt")
+        val expectedOutput = """
+            package com.example.plugin
+            
+            /**
+             * Hello World!
+             */
+            fun helloWorld() {
+                Regex("\\s[0-9]+")
+                Regex(${'"'}""\s[0-9]+${'"'}"")
+            }
+            
+            /**
+             * ```kotlin
+             * /**
+             *  * Hello World!
+             *  */
+             * fun helloWorld() {
+             *     Regex("\\s[0-9]+")
+             *     Regex(${'"'}""\s[0-9]+${'"'}"")
+             * }
+             * ```
+             */
+            fun helloWorld2() {}
+        """.trimIndent()
+
+        processContent(
+            content = content,
+            packageName = "com.example.plugin",
+            processors = processors,
+        ) shouldBe expectedOutput
+    }
+
+    @Test
     fun `Simple sample same file Java`() {
         @Language("java")
         val content = """

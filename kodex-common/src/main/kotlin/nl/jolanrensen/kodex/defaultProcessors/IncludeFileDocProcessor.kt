@@ -8,7 +8,9 @@ import nl.jolanrensen.kodex.intellij.CompletionInfo
 import nl.jolanrensen.kodex.intellij.HighlightInfo
 import nl.jolanrensen.kodex.intellij.HighlightType
 import nl.jolanrensen.kodex.processor.TagDocProcessor
+import nl.jolanrensen.kodex.utils.duplicateEscapeCharacters
 import nl.jolanrensen.kodex.utils.getTagArguments
+import nl.jolanrensen.kodex.utils.letIf
 import org.apache.commons.text.StringEscapeUtils
 import java.io.File
 import java.io.FileNotFoundException
@@ -19,6 +21,13 @@ import java.io.FileNotFoundException
 const val INCLUDE_FILE_DOC_PROCESSOR = "nl.jolanrensen.kodex.defaultProcessors.IncludeFileDocProcessor"
 
 /**
+ * [Boolean] argument controlling whether to add extra escape characters ('\') to the code everytime
+ * one is encountered. [RemoveEscapeCharsProcessor] is expected to be used after this processor.
+ * Default is `true`.
+ */
+const val INCLUDE_FILE_DOC_PROCESSOR_ADD_ESCAPE_CHARS = "$INCLUDE_FILE_DOC_PROCESSOR.ADD_ESCAPE_CHARS"
+
+/**
  * This tag doc processor will include the contents of a file in the docs.
  * For example:
  * `@includeFile (../../someFile.txt)`
@@ -26,6 +35,7 @@ const val INCLUDE_FILE_DOC_PROCESSOR = "nl.jolanrensen.kodex.defaultProcessors.I
  * `@includeFile` keeps the content of the block below the includeFile statement intact.
  *
  * TODO: issue #9: Additional settings
+ * @see [INCLUDE_FILE_DOC_PROCESSOR_ADD_ESCAPE_CHARS]
  */
 class IncludeFileDocProcessor : TagDocProcessor() {
 
@@ -48,6 +58,8 @@ class IncludeFileDocProcessor : TagDocProcessor() {
                 tailText = "Copy FILE content here. Use relative paths. Accepts 1 argument.",
             ),
         )
+
+    private val shouldAddEscapeChars by lazy { arguments[SAMPLE_DOC_PROCESSOR_ADD_ESCAPE_CHARS] as? Boolean ?: true }
 
     private fun processContent(line: String, documentable: DocumentableWrapper): String {
         val includeFileArguments = line.getTagArguments(
@@ -85,8 +97,9 @@ class IncludeFileDocProcessor : TagDocProcessor() {
                     .replace("*/", "&#42;&#47;")
 
             KOTLIN -> content
-        }.let {
-            if (extraContent.isNotEmpty()) {
+        }
+            .letIf(shouldAddEscapeChars, String::duplicateEscapeCharacters)
+            .letIf(extraContent.isNotEmpty()) {
                 buildString {
                     append(it)
                     if (!extraContent.first().isWhitespace()) {
@@ -94,10 +107,7 @@ class IncludeFileDocProcessor : TagDocProcessor() {
                     }
                     append(extraContent)
                 }
-            } else {
-                it
             }
-        }
     }
 
     /**

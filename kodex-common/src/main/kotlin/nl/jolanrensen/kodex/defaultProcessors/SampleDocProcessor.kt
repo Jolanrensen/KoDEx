@@ -14,7 +14,9 @@ import nl.jolanrensen.kodex.intellij.HighlightType
 import nl.jolanrensen.kodex.processor.TagDocProcessor
 import nl.jolanrensen.kodex.query.withoutFilters
 import nl.jolanrensen.kodex.utils.decodeCallableTarget
+import nl.jolanrensen.kodex.utils.duplicateEscapeCharacters
 import nl.jolanrensen.kodex.utils.getTagArguments
+import nl.jolanrensen.kodex.utils.letIf
 import org.apache.commons.text.StringEscapeUtils
 
 /**
@@ -27,6 +29,13 @@ const val SAMPLE_DOC_PROCESSOR = "nl.jolanrensen.kodex.defaultProcessors.SampleD
  * Default is `true`. (`false` in the IntelliJ plugin).
  */
 const val SAMPLE_DOC_PROCESSOR_THROW_WHEN_NOT_FOUND = "$SAMPLE_DOC_PROCESSOR.THROW_WHEN_NOT_FOUND"
+
+/**
+ * [Boolean] argument controlling whether to add extra escape characters ('\') to the code everytime
+ * one is encountered. [RemoveEscapeCharsProcessor] is expected to be used after this processor.
+ * Default is `true`.
+ */
+const val SAMPLE_DOC_PROCESSOR_ADD_ESCAPE_CHARS = "$SAMPLE_DOC_PROCESSOR.ADD_ESCAPE_CHARS"
 
 /**
  * Introduces @sample and @sampleNoComments tags.
@@ -44,6 +53,9 @@ const val SAMPLE_DOC_PROCESSOR_THROW_WHEN_NOT_FOUND = "$SAMPLE_DOC_PROCESSOR.THR
  * target.
  *
  * `@sample` and `@sampleNoComments` keeps the content of the block below the statement intact.
+ *
+ * @see [SAMPLE_DOC_PROCESSOR_THROW_WHEN_NOT_FOUND]
+ * @see [SAMPLE_DOC_PROCESSOR_ADD_ESCAPE_CHARS]
  */
 class SampleDocProcessor : TagDocProcessor() {
 
@@ -84,6 +96,7 @@ class SampleDocProcessor : TagDocProcessor() {
     private val sampleEndRegex = Regex(" *// *SampleEnd *\n")
 
     private val shouldThrow by lazy { arguments[SAMPLE_DOC_PROCESSOR_THROW_WHEN_NOT_FOUND] as? Boolean ?: true }
+    private val shouldAddEscapeChars by lazy { arguments[SAMPLE_DOC_PROCESSOR_ADD_ESCAPE_CHARS] as? Boolean ?: true }
 
     private fun processContent(tagWithContent: String, documentable: DocumentableWrapper): String {
         val unfilteredDocumentablesByPath by lazy { documentablesByPath.withoutFilters() }
@@ -103,7 +116,7 @@ class SampleDocProcessor : TagDocProcessor() {
         val extraContent = sampleArguments.getOrElse(1) { "" }
 
         fun String.withExtraContent() =
-            if (extraContent.isNotEmpty()) {
+            letIf(extraContent.isNotEmpty()) {
                 buildString {
                     append(this@withExtraContent)
                     if (!extraContent.first().isWhitespace()) {
@@ -111,8 +124,6 @@ class SampleDocProcessor : TagDocProcessor() {
                     }
                     append(extraContent)
                 }
-            } else {
-                this
             }
 
         val queries = documentable.getAllFullPathsFromHereForTargetPath(
@@ -143,6 +154,7 @@ class SampleDocProcessor : TagDocProcessor() {
             sampleSourceText = targetSourceText,
             sampleLanguage = targetDocumentable.programmingLanguage,
             currentLanguage = documentable.programmingLanguage,
+            duplicateEscapeChars = shouldAddEscapeChars,
         )
 
         // add extra content back if it existed
@@ -202,43 +214,6 @@ class SampleDocProcessor : TagDocProcessor() {
             this
         }
     }
-
-    /**
-     * Converts the [sample source text][sampleSourceText] to the correct comment content
-     * for the [sample source text language][sampleLanguage] and
-     * [current language][currentLanguage].
-     */
-    private fun convertSourceTextToCommentContent(
-        sampleSourceText: String,
-        sampleLanguage: ProgrammingLanguage,
-        currentLanguage: ProgrammingLanguage,
-    ): String =
-        buildString {
-            when (currentLanguage) {
-                JAVA -> {
-                    appendLine("<pre>")
-                    appendLine(
-                        StringEscapeUtils
-                            .escapeHtml4(sampleSourceText)
-                            .replace("@", "&#64;")
-                            .replace("*/", "&#42;&#47;"),
-                    )
-                    append("</pre>")
-                }
-
-                KOTLIN -> {
-                    append("```")
-                    appendLine(
-                        when (sampleLanguage) {
-                            JAVA -> "java"
-                            KOTLIN -> "kotlin"
-                        },
-                    )
-                    appendLine(sampleSourceText)
-                    append("```")
-                }
-            }
-        }
 
     /**
      * How to process the `@sample tag` when it's an inline tag.
@@ -354,3 +329,41 @@ class SampleDocProcessor : TagDocProcessor() {
             )
         }
 }
+
+/**
+ * Converts the [sample source text][sampleSourceText] to the correct comment content
+ * for the [sample source text language][sampleLanguage] and
+ * [current language][currentLanguage].
+ */
+private fun convertSourceTextToCommentContent(
+    sampleSourceText: String,
+    sampleLanguage: ProgrammingLanguage,
+    currentLanguage: ProgrammingLanguage,
+    duplicateEscapeChars: Boolean,
+): String =
+    buildString {
+        when (currentLanguage) {
+            JAVA -> {
+                appendLine("<pre>")
+                appendLine(
+                    StringEscapeUtils
+                        .escapeHtml4(sampleSourceText)
+                        .replace("@", "&#64;")
+                        .replace("*/", "&#42;&#47;"),
+                )
+                append("</pre>")
+            }
+
+            KOTLIN -> {
+                append("```")
+                appendLine(
+                    when (sampleLanguage) {
+                        JAVA -> "java"
+                        KOTLIN -> "kotlin"
+                    },
+                )
+                appendLine(sampleSourceText)
+                append("```")
+            }
+        }
+    }.letIf(duplicateEscapeChars, String::duplicateEscapeCharacters)

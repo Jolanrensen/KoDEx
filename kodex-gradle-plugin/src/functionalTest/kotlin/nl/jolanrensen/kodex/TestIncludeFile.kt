@@ -56,6 +56,45 @@ class TestIncludeFile : DocProcessorFunctionalTest(name = "includeFile") {
     }
 
     @Test
+    fun `File contains escape character kotlin`() {
+        @Language("kt")
+        val content = """
+            package com.example.plugin
+            
+            /**
+             * ```
+             * {@includeFile (./someFile.txt)}
+             * ```
+             */
+            fun helloWorld() {}
+        """.trimIndent()
+
+        @Language("kt")
+        val expectedOutput = """
+            package com.example.plugin
+            
+            /**
+             * ```
+             * Don't delete `C:\Windows\System32`!
+             * ```
+             */
+            fun helloWorld() {}
+        """.trimIndent()
+
+        processContent(
+            content = content,
+            packageName = "com.example.plugin",
+            additionals = listOf(
+                AdditionalFile(
+                    relativePath = "src/main/kotlin/com/example/plugin/someFile.txt",
+                    content = """Don't delete `C:\Windows\System32`!""",
+                ),
+            ),
+            processors = processors,
+        ) shouldBe expectedOutput
+    }
+
+    @Test
     fun `File does not exist`() {
         @Language("kt")
         val content = """
