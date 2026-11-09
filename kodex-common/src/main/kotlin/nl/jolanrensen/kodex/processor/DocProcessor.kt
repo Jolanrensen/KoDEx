@@ -34,6 +34,16 @@ abstract class DocProcessor : Serializable {
         internal set
 
     /**
+     * If `true` (default), the [DocProcessor] is considered idempotent,
+     * meaning if it's called again on preprocessed KDocs, the result will not change.
+     * In other words: `f(f(x)) == f(x)`.
+     *
+     * Most processors are idempotent, with one important exception being
+     * [nl.jolanrensen.kodex.defaultProcessors.RemoveEscapeCharsProcessor].
+     */
+    open val isIdempotent: Boolean = true
+
+    /**
      * Process given [documentablesByPath]. This function will only be called once per [DocProcessor] instance.
      * You can use [DocumentableWrapper.copy] to create a new [DocumentableWrapper] with modified
      * [doc content][DocumentableWrapper.docContent] or use [MutableDocumentableWrapper].
@@ -149,6 +159,15 @@ fun findProcessors(fullyQualifiedNames: List<String>, arguments: Map<String, Any
                 .newInstance()
                 .also { it.arguments = arguments }
         }
+
+    require(filteredProcessors.isSortedByDescending { it.isIdempotent }) {
+        "Processors must be sorted by idempotence. " +
+            "Processors that are not idempotent must be placed at the end, so caching can be done before they run. " +
+            "Recommended order: " +
+            filteredProcessors
+                .sortedByDescending { it.isIdempotent }
+                .joinToString(prefix = "[", postfix = "]") { it.name }
+    }
 
     return filteredProcessors
 }

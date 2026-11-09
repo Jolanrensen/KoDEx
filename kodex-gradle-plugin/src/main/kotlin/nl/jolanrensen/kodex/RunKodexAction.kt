@@ -154,27 +154,38 @@ abstract class RunKodexAction {
 
         val documentablesByPath = sourceDocs(processors)
 
-        // Run all processors
-        val allModifiedDocumentables =
-            processors
-                .fold(documentablesByPath) { acc, processor ->
-                    log.lifecycle { "Running processor: ${processor::class.qualifiedName}..." }
-                    val (docs, time) = measureTimedValue {
-                        processor.processSafely(processLimit = parameters.processLimit, documentablesByPath = acc)
-                    }
-                    log.lifecycle { "  - Finished in ${time.toString(DurationUnit.SECONDS)}." }
-                    docs
-                }
+        val (idempotentProcessors, nonIdempotentProcessors) =
+            processors.partition { it.isIdempotent }
+
+        // Run all idempotent processors
+        val allCachableModifiedDocumentables = runProcessors(
+            processors = idempotentProcessors,
+            documentablesByPath = documentablesByPath,
+        )
 
         // Filter for only the modifiedDocumentables within the source paths
+        // to cache those
         val sourcePaths = parameters.sources.sourceRoots.map { it.toPath().normalize() }.toSet()
-        val modifiedDocumentables = allModifiedDocumentables
-            .withDocsToProcessFilter {
+
+        fun DocumentablesByPath.withSourcePathFilter() =
+            this.withDocsToProcessFilter {
                 val path = it.file.toPath().normalize()
                 sourcePaths.any { path.startsWith(it) }
             }.documentablesToProcess
 
-        cacheModifiedDocumentablesByPath(modifiedDocumentables)
+        val cachableModifiedDocumentables = allCachableModifiedDocumentables
+            .withSourcePathFilter()
+
+        cacheModifiedDocumentablesByPath(cachableModifiedDocumentables)
+
+        // run the non-idempotent processors
+        val allModifiedDocumentables = runProcessors(
+            processors = nonIdempotentProcessors,
+            documentablesByPath = allCachableModifiedDocumentables,
+        )
+
+        val modifiedDocumentables = allModifiedDocumentables
+            .withSourcePathFilter()
 
         // filter to only include the modified documentables
         val modifiedDocumentablesPerFile = getModifiedDocumentablesPerFile(modifiedDocumentables)
@@ -202,8 +213,22 @@ abstract class RunKodexAction {
         )
 
         // export htmls
-        exportHtmls(modifiedDocumentables.values.flatten())
+        exportHtmls(cachableModifiedDocumentables.values.flatten())
     }
+
+    private suspend fun runProcessors(
+        processors: List<DocProcessor>,
+        documentablesByPath: DocumentablesByPath,
+    ): DocumentablesByPath =
+        processors
+            .fold(documentablesByPath) { acc, processor ->
+                log.lifecycle { "Running processor: ${processor::class.qualifiedName}..." }
+                val (docs, time) = measureTimedValue {
+                    processor.processSafely(processLimit = parameters.processLimit, documentablesByPath = acc)
+                }
+                log.lifecycle { "  - Finished in ${time.toString(DurationUnit.SECONDS)}." }
+                docs
+            }
 
     private fun readCachedContextualDocumentables(): DocumentablesByPathMap {
         if (contextualSources.isEmpty() || parameters.inputCacheFiles.isEmpty()) return emptyMap()
