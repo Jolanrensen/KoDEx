@@ -34,6 +34,19 @@ fun String.removeEscapeCharacters(escapeChars: List<Char> = listOf('\\')): Strin
         }
     }
 
+/**
+ * Duplicates all escape characters ('\') in the String.
+ */
+fun String.duplicateEscapeCharacters(escapeChars: List<Char> = listOf('\\')): String =
+    buildString {
+        for (char in this@duplicateEscapeCharacters) {
+            if (char in escapeChars) {
+                append(char)
+            }
+            append(char)
+        }
+    }
+
 fun String.getIndicesOfEscapeChars(escapeChars: List<Char> = listOf('\\')): List<Int> =
     buildList {
         var escapeNext = false
