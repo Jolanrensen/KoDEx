@@ -59,7 +59,9 @@ class IncludeFileDocProcessor : TagDocProcessor() {
             ),
         )
 
-    private val shouldAddEscapeChars by lazy { arguments[SAMPLE_DOC_PROCESSOR_ADD_ESCAPE_CHARS] as? Boolean ?: true }
+    private val shouldAddEscapeChars by lazy {
+        arguments[INCLUDE_FILE_DOC_PROCESSOR_ADD_ESCAPE_CHARS] as? Boolean ?: true
+    }
 
     private fun processContent(line: String, documentable: DocumentableWrapper): String {
         val includeFileArguments = line.getTagArguments(
