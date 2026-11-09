@@ -16,7 +16,7 @@ class PluginExtensionTest : DocProcessorFunctionalTest("extension") {
     )
 
     private val plugins = listOf(
-        "nl.jolanrensen:PluginExtensionTest:$VERSION",
+        "nl.jolanrensen:PluginExtensionTest:${BuildConfig.KODEX_VERSION}",
     )
 
     @Language("kts")
@@ -27,12 +27,12 @@ class PluginExtensionTest : DocProcessorFunctionalTest("extension") {
     @Language("kts")
     private val buildFile: String = """
         plugins {  
-            kotlin("jvm") version "2.2.10"
-            id("com.vanniktech.maven.publish") version "0.34.0"
+            kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
+            id("com.vanniktech.maven.publish") version "${BuildConfig.MAVEN_PUBLISH_VERSION}"
         }
 
         group = "nl.jolanrensen"
-        version = "$VERSION"
+        version = "${BuildConfig.KODEX_VERSION}"
         
         repositories {
             mavenLocal()
@@ -41,8 +41,8 @@ class PluginExtensionTest : DocProcessorFunctionalTest("extension") {
         }
         
         dependencies {
-            compileOnly("nl.jolanrensen.kodex:kodex-gradle-plugin:$VERSION")
-//            implementation("nl.jolanrensen.kodex:kodex-common:$VERSION")
+            compileOnly("nl.jolanrensen.kodex:kodex-gradle-plugin:${BuildConfig.KODEX_VERSION}")
+//            implementation("nl.jolanrensen.kodex:kodex-common:${BuildConfig.KODEX_VERSION}")
         }
     """.trimIndent()
 

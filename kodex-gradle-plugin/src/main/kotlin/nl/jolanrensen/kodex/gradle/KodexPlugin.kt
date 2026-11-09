@@ -20,6 +20,7 @@ import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.hasPlugin
 import org.gradle.kotlin.dsl.register
 import org.gradle.kotlin.dsl.withType
+import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptions
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinProjectExtension
@@ -39,19 +40,26 @@ import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 import org.jetbrains.kotlin.gradle.tasks.BaseKotlinCompile
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
+import javax.inject.Inject
 
 /**
  * Gradle plugin part of the doc-processor project.
  *
  * Extension functions in this file enable users to more easily create a [RunKodexTask] in their build.gradle.kts
  * file.
+ *
+ * It also registers a [KodexToolingModelBuilder], so IDEs (the KoDEx IntelliJ plugin) can read the configuration
+ * of the [KodexExtension] through the Gradle Tooling API.
  */
-class KodexPlugin : Plugin<Project> {
+class KodexPlugin @Inject constructor(private val registry: ToolingModelBuilderRegistry) : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
             val objects = objects
             val extension: KodexExtension = objects.newInstance(KodexExtension::class.java)
             extensions.add("kodex", extension)
+
+            // exposes the KoDEx configuration to the IDE, see KodexToolingModelBuilder
+            registry.register(KodexToolingModelBuilder())
 
             val kotlinExtension = extensions["kotlin"]
                 .let { it as? KotlinProjectExtension }

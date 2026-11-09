@@ -13,6 +13,7 @@ private const val INLINE_RENDERING = "kodex.inlineEnabled"
 
 private const val HIGHLIGHTING = "kodex.highlighting"
 private const val COMPLETION = "kodex.completion"
+private const val GRADLE_CONNECTION = "kodex.gradleConnection"
 
 sealed class Setting<T> : ObservableMutableProperty<T> {
     abstract val messageBundleName: String
@@ -101,14 +102,29 @@ data object KodexCompletionIsEnabled : BooleanSetting() {
     override val default: Boolean = true
 }
 
+/**
+ * Whether the plugin should use the KoDEx configuration imported from the Gradle build ("connected" mode)
+ * when available, or always run with its built-in defaults ("standalone" mode).
+ *
+ * @see nl.jolanrensen.kodex.gradle.KodexGradleConnectionService
+ */
+data object KodexGradleConnectionIsEnabled : BooleanSetting() {
+    @PropertyKey(resourceBundle = "messages.MessageBundle")
+    override val messageBundleName: String = "kodexGradleConnectionEnabled"
+    override val key: String = GRADLE_CONNECTION
+    override val default: Boolean = true
+}
+
 val allSettings: Array<Setting<*>> = arrayOf(
     KodexRenderingIsEnabled,
     KodexInlineRenderingIsEnabled,
     KodexHighlightingIsEnabled,
     KodexCompletionIsEnabled,
+    KodexGradleConnectionIsEnabled,
 )
 
 var kodexRenderingIsEnabled by KodexRenderingIsEnabled
 var kodexInlineRenderingIsEnabled by KodexInlineRenderingIsEnabled
 var kodexHighlightingIsEnabled by KodexHighlightingIsEnabled
 var kodexCompletionIsEnabled by KodexCompletionIsEnabled
+var kodexGradleConnectionIsEnabled by KodexGradleConnectionIsEnabled

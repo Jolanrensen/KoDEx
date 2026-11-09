@@ -1,5 +1,6 @@
 package nl.jolanrensen.kodex.gradle
 
+import nl.jolanrensen.kodex.BuildConfig
 import nl.jolanrensen.kodex.defaultProcessors.ARG_DOC_PROCESSOR
 import nl.jolanrensen.kodex.defaultProcessors.COMMENT_DOC_PROCESSOR
 import nl.jolanrensen.kodex.defaultProcessors.EXPORT_AS_HTML_DOC_PROCESSOR
@@ -368,7 +369,7 @@ internal fun Project.maybeCreateRuntimeConfiguration(): Configuration =
         isCanBeConsumed = false
         isCanBeResolved = true
 
-        val dokkaVersion = "2.2.0"
+        val dokkaVersion = BuildConfig.DOKKA_VERSION
 
         listOf(
 //            "org.jetbrains.dokka:analysis-kotlin-api:$dokkaVersion",

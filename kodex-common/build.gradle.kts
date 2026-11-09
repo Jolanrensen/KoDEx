@@ -3,16 +3,16 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     java
-    kotlin("jvm")
-    id("com.vanniktech.maven.publish")
-    id("com.gradleup.shadow")
-    id("org.jlleitschuh.gradle.ktlint")
+    alias(libs.plugins.kotlinJvm)
+    alias(libs.plugins.mavenPublish)
+    alias(libs.plugins.shadow)
+    alias(libs.plugins.ktlint)
 }
 
 group = "nl.jolanrensen.kodex"
-version = "0.7.2-SNAPSHOT"
+version = libs.versions.kodex.get()
 
-val kotlinVersion = "2.4.0"
+val kotlinVersion = libs.versions.kotlin.get()
 
 repositories {
     mavenCentral()
@@ -32,27 +32,27 @@ configurations.all {
 
 dependencies {
     implementation(kotlin("stdlib"))
-    implementation("org.apache.commons:commons-text:1.10.0")
+    implementation(libs.commonsText)
 
-    shadow("org.jetbrains:markdown-jvm:0.6.1")
-    api("org.jgrapht:jgrapht-core:1.5.2")
+    shadow(libs.markdownJvm)
+    api(libs.jgraphtCore)
 
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+    implementation(libs.coroutinesCore)
 
     // logging
-    api("io.github.oshai:kotlin-logging:7.0.13")
+    api(libs.kotlinLogging)
 
     // Use JUnit test framework for unit tests
     testImplementation(kotlin("test"))
-    testImplementation("io.kotest:kotest-assertions-core:5.5.5")
-    testRuntimeOnly("org.slf4j:slf4j-simple:2.0.17")
+    testImplementation(libs.kotestAssertionsCore)
+    testRuntimeOnly(libs.slf4jSimple)
 }
 
 tasks.shadowJar {
     isZip64 = true
     archiveClassifier = ""
 
-    // Avoid clashes with org.jetbrains:markdown-jvm:0.6.1 in :common
+    // Avoid clashes with org.jetbrains:markdown-jvm in :common
     relocate("org.intellij.markdown", "nl.jolanrensen.kodex.markdown")
 
     // so we overwrite the output jar

@@ -2,10 +2,10 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
 plugins {
-    id("org.jetbrains.kotlin.multiplatform")
+    alias(libs.plugins.kotlinMultiplatform)
 
     // adding the Gradle plugin
-    id("nl.jolanrensen.kodex") version "0.4.1-SNAPSHOT"
+    alias(libs.plugins.kodexMultiplatformExample)
 }
 
 kotlin {

@@ -1,14 +1,14 @@
 import nl.jolanrensen.kodex.defaultProcessors.ARG_DOC_PROCESSOR_LOG_NOT_FOUND
 
 plugins {
-    kotlin("jvm") // version "2.2.21"
+    alias(libs.plugins.kotlinJvm)
 
     // adding the Gradle plugin
-    id("nl.jolanrensen.kodex") version "0.6.4"
+    alias(libs.plugins.kodexJvmExample)
 }
 
 group = "nl.jolanrensen.example"
-version = "1.0"
+version = libs.versions.exampleJvmProject.get()
 
 repositories {
     mavenCentral()
@@ -21,11 +21,11 @@ kotlin {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:dataframe:0.15.0")
+    implementation(libs.dataframe)
     testImplementation(kotlin("test"))
 
-    implementation("androidx.compose.runtime:runtime:1.7.6")
-    implementation("androidx.compose.ui:ui:1.7.6")
+    implementation(libs.composeRuntime)
+    implementation(libs.composeUi)
 }
 
 // new experimental gradle extension

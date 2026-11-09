@@ -42,8 +42,8 @@ class TestCrossModuleContextual {
         import nl.jolanrensen.kodex.defaultProcessors.*
         
         plugins {
-            kotlin("jvm") version "2.2.10"
-            id("nl.jolanrensen.kodex") version "$VERSION"
+            kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
+            id("nl.jolanrensen.kodex") version "${BuildConfig.KODEX_VERSION}"
         }
         
         repositories { mavenLocal(); mavenCentral() }
@@ -134,7 +134,7 @@ class TestCrossModuleContextual {
     private val buildFileWithoutKodex =
         """
         plugins {
-            kotlin("jvm") version "2.2.10"
+            kotlin("jvm") version "${BuildConfig.KOTLIN_VERSION}"
         }
         
         repositories { mavenLocal(); mavenCentral() }
