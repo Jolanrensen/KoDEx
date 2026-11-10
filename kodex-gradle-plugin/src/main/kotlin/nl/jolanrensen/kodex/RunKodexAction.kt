@@ -219,7 +219,13 @@ abstract class RunKodexAction {
                 log.warn(e) { "Could not read cache file ${file.absolutePath}: ${e.message}" }
                 null
             }
-        }.fold(emptyMap(), Map<String, List<DocumentableWrapper>>::plus)
+        }.fold(emptyMap<String, List<DocumentableWrapper>>()) { map1, map ->
+            val mutable = map1.toMutableMap()
+            for ((key, value) in map) {
+                mutable[key] = mutable[key]?.plus(value) ?: value
+            }
+            mutable
+        }
 
         return cache
     }
