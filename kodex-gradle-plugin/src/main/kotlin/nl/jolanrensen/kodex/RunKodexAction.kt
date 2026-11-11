@@ -212,7 +212,7 @@ abstract class RunKodexAction {
         )
 
         // export htmls
-        exportHtmls(cachableModifiedDocumentables.values.flatten())
+        exportHtmls(modifiedDocumentables.values.flatten())
     }
 
     private suspend fun runProcessors(
