@@ -14,16 +14,13 @@ plugins {
     alias(libs.plugins.buildConfig)
 }
 
-group = "nl.jolanrensen.kodex"
-version = libs.versions.kodex.get()
-
 val kotlinVersion = libs.versions.kotlin.get()
 val dokkaVersion = libs.versions.dokka.get()
 
 buildConfig {
     packageName("nl.jolanrensen.kodex")
     useKotlinOutput { internalVisibility = false }
-    buildConfigField("KODEX_VERSION", libs.versions.kodex.get())
+    buildConfigField("KODEX_VERSION", project.version.toString())
     buildConfigField("KOTLIN_VERSION", kotlinVersion)
     buildConfigField("DOKKA_VERSION", dokkaVersion)
     buildConfigField("MAVEN_PUBLISH_VERSION", libs.versions.mavenPublish.get())

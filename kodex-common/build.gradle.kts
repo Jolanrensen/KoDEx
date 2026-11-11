@@ -9,9 +9,6 @@ plugins {
     alias(libs.plugins.ktlint)
 }
 
-group = "nl.jolanrensen.kodex"
-version = libs.versions.kodex.get()
-
 val kotlinVersion = libs.versions.kotlin.get()
 
 repositories {

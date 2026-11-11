@@ -3,9 +3,6 @@ plugins {
     alias(libs.plugins.mavenPublish)
 }
 
-group = "nl.jolanrensen.kodex"
-version = libs.versions.kodex.get()
-
 repositories {
     mavenCentral()
 }
