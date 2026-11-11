@@ -365,7 +365,7 @@ While you can use the processors in any order and leave out some or include othe
 - `SAMPLE_DOC_PROCESSOR`: The `@sample` and `@sampleNoComments` processor
 - `EXPORT_AS_HTML_DOC_PROCESSOR`: The `@exportAsHtmlStart` and `@exportAsHtmlEnd` tags for `@ExportAsHtml`
 - `REFERENCE_CODE_SPAN_DOC_PROCESSOR`: The processor that adds aliases with `<code>` tags to all references in KDocs
-- `REMOVE_ESCAPE_CHARS_PROCESSOR`: The processor that removes escape characters
+- `REMOVE_ESCAPE_CHARS_PROCESSOR`: The processor that removes escape characters (non-idempotent, so it should be last)
 
 The `@comment` processor is recommended to be the first processor, such that its contents are removed before any other
 processor runs. Next, we ensure that `@set`/`@get` are processed after `@include` and `@includeFile` such that any

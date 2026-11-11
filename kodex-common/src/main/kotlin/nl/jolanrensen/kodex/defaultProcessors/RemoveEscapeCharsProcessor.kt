@@ -42,6 +42,12 @@ class RemoveEscapeCharsProcessor : DocProcessor() {
             ),
         )
 
+    /**
+     * This processor cannot be run over its own output.
+     * It might remove 'escaped' escape characters.
+     */
+    override val isIdempotent: Boolean = false
+
     override suspend fun process(processLimit: Int, documentablesByPath: DocumentablesByPath): DocumentablesByPath =
         coroutineScope {
             val mutableDocs = documentablesByPath
